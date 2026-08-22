@@ -14,7 +14,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from .config import runtime
 from .dual_zero import classify_streams, skip_sep_feasibility
+
+_RT = runtime()
+SKIP_BSS_P_MUSIC_MAX = float(_RT["skip_bss_p_music_max"])
+SKIP_BSS_SNR_MIN_DB = float(_RT["skip_bss_snr_min_db"])
+SKIP_BSS_ENABLED_DEFAULT = bool(_RT["skip_bss_enabled"])
 
 
 @dataclass(frozen=True)
@@ -46,9 +52,9 @@ def skip_bss_before_sep(
     p_music: float | None,
     snr_med_db: float | None,
     dur_sec: float | None = None,
-    p_music_max: float = 0.15,
-    snr_min_db: float = 15.0,
-    enabled: bool = False,
+    p_music_max: float = SKIP_BSS_P_MUSIC_MAX,
+    snr_min_db: float = SKIP_BSS_SNR_MIN_DB,
+    enabled: bool = SKIP_BSS_ENABLED_DEFAULT,
 ) -> SkipSepDecision:
     """Optional pre-BSS skip. Default disabled until residual models are calibrated.
 

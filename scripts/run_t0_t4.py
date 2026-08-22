@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 """T0–T4 enroll selection arms. One factor at a time. No MMS-FA.
 
-T0: CER oracle (enriched best_sep)
-T1: T0 + conditional SE (requires SE backend)
-T2: L2 cos-to-raw under CER slack, no SE
-T3: T2 + conditional SE
-T4: SE on everyone (ablation; expected to lose)
-
-Without embeddings / SE backends, T2 falls back to recording eligible dual-zero
-items and T1/T3/T4 are marked skipped. Presence veto is not computed here.
+T4 is CER-oracle + always-SE. It must not call L2.
 """
 
 from __future__ import annotations
@@ -21,12 +14,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from kws.arms import ALL_ARMS, CER_ORACLE_ARMS, L2_ARMS, se_mode  # noqa: E402
 from kws.iojson import load_jsonl, write_json  # noqa: E402
-from kws.need_se import need_se, se_safety_ok  # noqa: E402
-from kws.select_l2 import CER_SLACK_DEFAULT, select_l1_l2  # noqa: E402
+from kws.sidecar import SidecarError, clip_p_music, load_cos_sidecar, load_pmusic_sidecar  # noqa: E402
+from kws.t0_t4 import pick_track, t0_stream, apply_se_placeholder  # noqa: E402
 
-
-ARMS = ("T0", "T1", "T2", "T3", "T4")
+ARMS = tuple(sorted(ALL_ARMS))
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,128 +29,93 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=ROOT / "reports" / "best_sep_enriched.jsonl",
     )
-    p.add_argument("--cos-jsonl", type=Path, default=None, help="uid -> {stream: cos_to_raw}")
-    p.add_argument("--pmusic-jsonl", type=Path, default=None)
+    p.add_argument("--cos-jsonl", type=Path, default=None, help="uid + exactly one of cos_to_raw|scores|cos")
+    p.add_argument("--pmusic-jsonl", type=Path, default=None, help="uid + p_music float or stream dict")
     p.add_argument("--out", type=Path, default=ROOT / "reports" / "t0_t4.json")
     p.add_argument("--arm", choices=ARMS, default=None)
-    return p.parse_args()
-
-
-def load_sidecar(path: Path | None) -> dict[str, dict]:
-    if path is None or not path.is_file():
-        return {}
-    out: dict[str, dict] = {}
-    for row in load_jsonl(path):
-        out[str(row["uid"])] = row.get("scores") or row.get("cos") or row
-    return out
-
-
-def apply_se_placeholder(
-    chosen: str,
-    *,
-    arm: str,
-    winner_is_original: bool,
-    p_music: float | None,
-    snr: float | None,
-) -> dict:
-    """SE backends are optional. Record the trigger; do not pretend denoise ran."""
-    if arm == "T0":
-        return {"se_applied": False, "reason": "t0_no_se"}
-    if arm == "T2":
-        return {"se_applied": False, "reason": "t2_no_se"}
-    if arm == "T4":
-        return {
-            "se_applied": False,
-            "would_apply": True,
-            "reason": "t4_global_se_backend_missing",
-            "safety": "must_check_cos_se_pre_and_presence",
-        }
-    trig = need_se(
-        winner_is_original=winner_is_original,
-        p_music=p_music,
-        snr_med_db=snr,
+    p.add_argument(
+        "--strict-cos",
+        action="store_true",
+        help="T2/T3 fail if --cos-jsonl is missing (default: degrade to T0 and flag)",
     )
-    return {
-        "se_applied": False,
-        "would_apply": trig.need,
-        "need_se_reason": trig.reason,
-        "reason": "conditional_se_backend_missing" if trig.need else "need_se_false",
-    }
+    return p.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     rows = load_jsonl(args.enriched)
-    cos_map = load_sidecar(args.cos_jsonl)
-    pm_map = load_sidecar(args.pmusic_jsonl)
+    if args.cos_jsonl is not None:
+        if not args.cos_jsonl.is_file():
+            raise SidecarError(f"cos sidecar not found: {args.cos_jsonl}")
+        cos_map = load_cos_sidecar(args.cos_jsonl)
+        if not cos_map:
+            raise SidecarError(f"cos sidecar is empty: {args.cos_jsonl}")
+    else:
+        cos_map = {}
+    if args.pmusic_jsonl is not None:
+        if not args.pmusic_jsonl.is_file():
+            raise SidecarError(f"p_music sidecar not found: {args.pmusic_jsonl}")
+        pm_map = load_pmusic_sidecar(args.pmusic_jsonl)
+        if not pm_map:
+            raise SidecarError(f"p_music sidecar is empty: {args.pmusic_jsonl}")
+    else:
+        pm_map = {}
+
     arms = (args.arm,) if args.arm else ARMS
+    if args.strict_cos and any(a in L2_ARMS for a in arms) and not cos_map:
+        raise SidecarError("T2/T3 require --cos-jsonl under --strict-cos")
+
     summary: dict[str, dict] = {}
     for arm in arms:
         n_dual = 0
         n_l2_diff = 0
         n_cat = 0
         n_need_se = 0
+        n_degraded = 0
         chosen_counts: dict[str, int] = {}
         examples: list[dict] = []
         for rec in rows:
-            uid = rec["uid"]
             streams = rec.get("streams") or {}
             if not streams:
                 continue
-            t0 = rec.get("oracle_stream") or rec.get("recomputed_oracle", {}).get("oracle_stream")
-            pm = None
-            if uid in pm_map:
-                v = pm_map[uid]
-                pm = float(v.get("p_music", v.get(t0, 0.0))) if isinstance(v, dict) else float(v)
-            if arm in ("T0", "T1"):
-                chosen = t0
-                dual = bool(rec.get("dual_zero"))
-                reverted = False
-                reason = "t0_cer_oracle"
-            else:
-                sel = select_l1_l2(
-                    streams,
-                    cos_to_raw=cos_map.get(uid),
-                    p_music=pm_map.get(uid) if isinstance(pm_map.get(uid), dict) else None,
-                )
-                chosen = sel.chosen
-                dual = sel.dual_zero
-                reverted = sel.reverted_catastrophe
-                reason = sel.reason
-                if sel.chosen != t0:
-                    n_l2_diff += 1
-                if reverted:
-                    n_cat += 1
-            if dual:
+            uid = str(rec["uid"])
+            picked = pick_track(arm, rec, cos_map=cos_map, pm_map=pm_map)
+            t0 = t0_stream(rec)
+            chosen = picked["chosen"]
+            pm_clip = clip_p_music(pm_map.get(uid), chosen) if uid in pm_map else None
+            se = apply_se_placeholder(chosen, arm=arm, p_music=pm_clip, snr=None)
+            if picked["dual_zero"]:
                 n_dual += 1
-            se = apply_se_placeholder(
-                chosen,
-                arm=arm,
-                winner_is_original=(chosen == "original"),
-                p_music=pm,
-                snr=None,
-            )
+            if picked["l2_degraded"]:
+                n_degraded += 1
+            if chosen != t0 and arm in L2_ARMS:
+                n_l2_diff += 1
+            if picked["reverted_catastrophe"]:
+                n_cat += 1
             if se.get("would_apply"):
                 n_need_se += 1
             chosen_counts[str(chosen)] = chosen_counts.get(str(chosen), 0) + 1
-            if len(examples) < 8 and (dual or chosen != t0):
+            if len(examples) < 8 and (picked["dual_zero"] or chosen != t0 or picked["l2_degraded"]):
                 examples.append(
                     {
                         "uid": uid,
                         "t0": t0,
                         "chosen": chosen,
-                        "reason": reason,
-                        "dual_zero": dual,
+                        "reason": picked["reason"],
+                        "dual_zero": picked["dual_zero"],
                         "se": se,
                     }
                 )
         summary[arm] = {
             "n": len(rows),
+            "select_mode": "cer_oracle" if arm in CER_ORACLE_ARMS else "l2",
+            "se_mode": se_mode(arm),
             "chosen_counts": chosen_counts,
             "n_dual_zero": n_dual,
             "n_l2_diff_from_t0": n_l2_diff,
             "n_catastrophe_revert": n_cat,
             "n_would_se": n_need_se,
+            "n_l2_degraded_no_cos": n_degraded,
             "cos_sidecar_loaded": bool(cos_map),
             "examples": examples,
             "answers": {
@@ -165,11 +123,19 @@ def main() -> None:
                 "T1": "does conditional SE on CER winners help Presence?",
                 "T2": "does cos-to-raw under CER slack pick a different track on dual-zero?",
                 "T3": "T2 plus conditional SE",
-                "T4": "global SE should lose; if it wins, need_se is miscalibrated",
+                "T4": "global SE on CER-oracle enroll should lose; if it wins, need_se is miscalibrated",
             }[arm],
         }
+        if arm in L2_ARMS and n_degraded == summary[arm]["n"] and not cos_map:
+            summary[arm]["stop_loss"] = "L2 had no cos sidecar; do not interpret as T2 failure; skip T3"
     write_json(args.out, summary)
-    print(json.dumps({k: {kk: vv for kk, vv in v.items() if kk != "examples"} for k, v in summary.items()}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {k: {kk: vv for kk, vv in v.items() if kk != "examples"} for k, v in summary.items()},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

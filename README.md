@@ -45,7 +45,7 @@ python scripts/run_t0_t4.py
 
 GPU BSS re-run (optional, AutoDL extract/VM, still CER oracle): `bash scripts/rerun_sep.sh`
 
-T2 needs a sidecar `uid → {original,spk1,spk2: cos_to_raw}` from eres. Without it, T2 equals T0.
+T2 needs a sidecar jsonl: each row `{"uid": "...", "cos_to_raw": {"original": 0.9, "spk1": 0.8, "spk2": 0.1}}` (or `scores` / `cos`). Empty dicts and whole-row fallback are rejected. If the file is passed, every uid must be present; a partial file is an error, not a mixed T0/L2 run. Without `--cos-jsonl`, T2 degrades to T0 and records `n_l2_degraded_no_cos`. Hard-fail with `--strict-cos`.
 
 ## Adopt rule
 

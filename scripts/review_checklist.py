@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Static review: code implements the frozen experiment design, not MMS-FA."""
+"""Review that can fail if the experiment contract is broken.
+
+Substring search alone is not enough (that is the false-security failure mode).
+This script imports the arm sets, validates YAML vs code defaults, and runs a
+T4-vs-L2 behavioral probe plus sidecar rejection cases.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +12,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from kws.arms import CER_ORACLE_ARMS, GLOBAL_SE_ARMS, L2_ARMS, se_mode, select_mode  # noqa: E402
+from kws.config import MatrixError, matrix, validate_code_defaults  # noqa: E402
+from kws.sidecar import SidecarError, parse_cos_row  # noqa: E402
+from kws.t0_t4 import pick_track  # noqa: E402
+
 CHECKS: list[tuple[str, bool, str]] = []
 
 
@@ -14,78 +26,98 @@ def ok(name: str, cond: bool, detail: str) -> None:
     CHECKS.append((name, cond, detail))
 
 
-def source_blob() -> str:
-    parts: list[str] = []
-    skip = {"review_checklist.py"}
-    for p in list((ROOT / "src").rglob("*.py")) + list((ROOT / "scripts").glob("*.py")):
-        if p.name in skip:
-            continue
-        parts.append(p.read_text(encoding="utf-8"))
-    return "\n".join(parts)
-
-
 def main() -> int:
-    blob = source_blob()
-    src_text = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "src").rglob("*.py"))
-    src_low = src_text.lower()
+    try:
+        matrix()
+        yaml_ok, yaml_detail = True, "experiment_matrix.yaml internal invariants hold"
+    except MatrixError as e:
+        yaml_ok, yaml_detail = False, str(e)
+    ok("yaml_invariants", yaml_ok, yaml_detail)
+
+    try:
+        validate_code_defaults()
+        code_ok, code_detail = True, "Python defaults match runtime:"
+    except MatrixError as e:
+        code_ok, code_detail = False, str(e)
+    ok("code_defaults_match_yaml", code_ok, code_detail)
+
     ok(
-        "no_mms_fa_selector",
-        "MmsFa" not in blob and "mms_fa_scorer" not in blob and "pick_mms" not in blob,
-        "selector path must not call MMS-FA",
+        "t4_is_cer_oracle",
+        "T4" in CER_ORACLE_ARMS and select_mode("T4") == "cer_oracle",
+        "T4 select_mode is cer_oracle",
     )
     ok(
-        "no_mms_import",
-        "import mms_fa" not in src_low
-        and "from mms_fa" not in src_low
-        and "from mms " not in src_low
-        and "import mms\n" not in src_low,
-        "no MMS module import in src/",
+        "t4_not_l2",
+        "T4" not in L2_ARMS,
+        "T4 is not in L2_ARMS",
     )
     ok(
-        "oracle_prefers_original",
-        "prefer_original" in blob,
-        "T0 oracle_of must prefer original on CER ties",
+        "t4_se_always",
+        "T4" in GLOBAL_SE_ARMS and se_mode("T4") == "always",
+        "T4 se_mode is always",
+    )
+
+    rec = {
+        "uid": "probe",
+        "oracle_stream": "original",
+        "dual_zero": True,
+        "streams": {
+            "original": {"cer": 0.0},
+            "spk1": {"cer": 0.0},
+            "spk2": {"cer": 0.4},
+        },
+    }
+    cos = {"probe": {"original": 0.50, "spk1": 0.99, "spk2": 0.10}}
+    t4 = pick_track("T4", rec, cos_map=cos, pm_map={})
+    t2 = pick_track("T2", rec, cos_map=cos, pm_map={})
+    ok(
+        "t4_ignores_cos_sidecar",
+        t4["chosen"] == "original" and t4["reason"] == "t4_cer_oracle",
+        "with a sidecar that prefers spk1, T4 still keeps CER-oracle original",
     )
     ok(
-        "candidates_orig_spk",
-        "is_sep_stream" in blob and "original" in blob,
-        "candidates are original vs sep tracks",
+        "t2_uses_cos_sidecar",
+        t2["chosen"] == "spk1",
+        "same sidecar makes T2 pick spk1 (probe is live)",
     )
+
+    sidecar_ok = True
+    sidecar_detail = "empty scores and whole-row fallback raise SidecarError"
+    try:
+        parse_cos_row({"uid": "a", "scores": {}}, index=0)
+        sidecar_ok = False
+        sidecar_detail = "empty scores dict was accepted"
+    except SidecarError:
+        pass
+    try:
+        parse_cos_row({"uid": "a", "oracle_stream": "original", "spk1": 0.9}, index=0)
+        sidecar_ok = False
+        sidecar_detail = "whole-row fallback was accepted"
+    except SidecarError:
+        pass
+    ok("sidecar_rejects_ambiguous", sidecar_ok, sidecar_detail)
+
+    partial_ok = True
+    partial_detail = "non-empty cos map missing uid raises SidecarError"
+    try:
+        pick_track(
+            "T2",
+            rec,
+            cos_map={"other": {"original": 1.0, "spk1": 0.9, "spk2": 0.1}},
+            pm_map={},
+        )
+        partial_ok = False
+        partial_detail = "partial sidecar was accepted"
+    except SidecarError:
+        pass
+    ok("partial_sidecar_is_error", partial_ok, partial_detail)
+
+    # Weak leftover: MMS names must still be absent from src.
+    src = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "src").rglob("*.py"))
     ok(
-        "skip_sep_not_duration",
-        "never skip BSS because the clip is short" in blob
-        or "Duration is accepted as an input but never used" in blob,
-        "skip-sep must not use dur<=1.8s",
-    )
-    ok(
-        "l1_slack_0p05",
-        "CER_SLACK_DEFAULT = 0.05" in blob,
-        "L1 slack frozen at 0.05 search default",
-    )
-    ok(
-        "catastrophe_grid",
-        "0.90" in blob and "CATASTROPHE_COS_GRID" in blob,
-        "cos(e*,e_raw) grid 0.90-0.95",
-    )
-    ok(
-        "window_skip_0p8",
-        "MIN_DUR_SEC = 0.8" in blob,
-        "window min-cos skipped below 0.8s",
-    )
-    ok(
-        "se_not_equal_speaker",
-        "Denoise" in blob,
-        "SE safety documented",
-    )
-    ok(
-        "presence_is_veto",
-        "only enroll-adoption veto" in blob or "PresenceVeto" in blob,
-        "Presence is veto, not an online enroll metric",
-    )
-    ok(
-        "t4_is_ablation",
-        "t4_global_se" in blob or "T4" in blob,
-        "T4 global SE is an ablation arm",
+        "no_mms_fa_symbols",
+        "MmsFa" not in src and "mms_fa_scorer" not in src and "pick_mms" not in src,
+        "src has no MMS-FA symbols (weak complement, not a substitute for the T4 probe)",
     )
 
     failed = 0
@@ -95,6 +127,9 @@ def main() -> int:
             failed += 1
         print(f"[{mark}] {name}: {detail}")
     print(f"{len(CHECKS) - failed}/{len(CHECKS)} passed")
+    print(
+        "NOTE: this review still cannot prove SE backends ran or Presence was evaluated."
+    )
     return 1 if failed else 0
 
 

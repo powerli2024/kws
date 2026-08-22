@@ -1,4 +1,5 @@
 # Frozen experiment matrix v2. Thresholds are search ranges until calibrated.
+# `runtime` is the only set of default scalars code may use. Grids remain search ranges.
 
 schema_version: 2
 selector: oracle_cer_prefer_original  # never MMS-FA
@@ -84,6 +85,25 @@ eval_subsets:
   orig_unique_zero: skip-sep candidate
   listen100: residual labels when available
   hard_neg: only if uid guarantees different speakers — otherwise unused
+
+# Single source of runtime defaults. review_checklist and kws.config validate
+# these against catastrophe_cos.default_until_calibrated / cer.l1_slack / windows.
+runtime:
+  l1_slack: 0.05
+  lambda: 0.0
+  catastrophe_cos: 0.92
+  se_cos_thr: 0.92
+  p_music_orig: 0.40
+  p_music_sep: 0.35
+  snr_orig_db: 5.0
+  snr_sep_db: 8.0
+  window_min_dur_sec: 0.8
+  window_win_sec: 0.6
+  window_hop_sec: 0.3
+  # pre-BSS skip is intentionally stricter than need_se, and stays OFF
+  skip_bss_p_music_max: 0.15
+  skip_bss_snr_min_db: 15.0
+  skip_bss_enabled: false
 
 do_not:
   - train a new separator

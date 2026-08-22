@@ -13,12 +13,15 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from .oracle import is_sep_stream, oracle_of, stream_cer
+from .sidecar import SidecarError
+from .config import runtime
 
-CER_SLACK_DEFAULT = 0.05
+_RT = runtime()
+CER_SLACK_DEFAULT = float(_RT["l1_slack"])
 LAMBDA_GRID = (0.0, 0.05, 0.10)
 CATASTROPHE_COS_GRID = tuple(round(0.90 + i * 0.01, 2) for i in range(6))
-DEFAULT_CATASTROPHE_COS = 0.90
-DEFAULT_LAMBDA = 0.0
+DEFAULT_CATASTROPHE_COS = float(_RT["catastrophe_cos"])
+DEFAULT_LAMBDA = float(_RT["lambda"])
 
 
 @dataclass(frozen=True)
@@ -86,10 +89,18 @@ def select_l1_l2(
         )
 
     p_music = p_music or {}
+    missing_cos = [n for n in eligible if n not in cos_to_raw]
+    if missing_cos:
+        raise SidecarError(f"cos_to_raw missing streams {missing_cos}")
     scores: dict[str, float] = {}
     for name in eligible:
-        cos = float(cos_to_raw.get(name, 0.0))
-        pm = float(p_music.get(name, 0.0))
+        cos = float(cos_to_raw[name])
+        if name not in p_music:
+            if lam != 0.0:
+                raise SidecarError(f"p_music missing stream {name!r} with lambda={lam}")
+            pm = 0.0
+        else:
+            pm = float(p_music[name])
         scores[name] = cos - lam * pm
 
     # Higher score wins; exact ties keep original (conservative).
@@ -98,7 +109,7 @@ def select_l1_l2(
     reason = "l2_max_cos_minus_pmusic"
 
     if is_sep_stream(chosen) and dual_zero:
-        if float(cos_to_raw.get(chosen, 0.0)) < catastrophe_cos:
+        if float(cos_to_raw[chosen]) < catastrophe_cos:
             chosen = "original" if "original" in eligible else chosen
             reverted = True
             reason = "dual_zero_sep_catastrophe_revert_original"

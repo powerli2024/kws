@@ -1,6 +1,8 @@
 {
   "T0": {
     "n": 1838,
+    "select_mode": "cer_oracle",
+    "se_mode": "none",
     "chosen_counts": {
       "spk2": 289,
       "original": 1162,
@@ -14,16 +16,18 @@
     "n_l2_diff_from_t0": 0,
     "n_catastrophe_revert": 0,
     "n_would_se": 0,
+    "n_l2_degraded_no_cos": 0,
     "cos_sidecar_loaded": false,
     "examples": [
       {
         "uid": "pos_1",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -31,10 +35,11 @@
         "uid": "pos_9",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -42,10 +47,11 @@
         "uid": "pos_15",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -53,10 +59,11 @@
         "uid": "pos_17",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -64,10 +71,11 @@
         "uid": "pos_19",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -75,10 +83,11 @@
         "uid": "pos_21",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -86,10 +95,11 @@
         "uid": "pos_23",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       },
@@ -97,10 +107,11 @@
         "uid": "pos_24",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t0_no_se"
         }
       }
@@ -109,6 +120,8 @@
   },
   "T1": {
     "n": 1838,
+    "select_mode": "cer_oracle",
+    "se_mode": "conditional",
     "chosen_counts": {
       "spk2": 289,
       "original": 1162,
@@ -122,13 +135,14 @@
     "n_l2_diff_from_t0": 0,
     "n_catastrophe_revert": 0,
     "n_would_se": 0,
+    "n_l2_degraded_no_cos": 0,
     "cos_sidecar_loaded": false,
     "examples": [
       {
         "uid": "pos_1",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -141,7 +155,7 @@
         "uid": "pos_9",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -154,7 +168,7 @@
         "uid": "pos_15",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -167,7 +181,7 @@
         "uid": "pos_17",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -180,7 +194,7 @@
         "uid": "pos_19",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -193,7 +207,7 @@
         "uid": "pos_21",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -206,7 +220,7 @@
         "uid": "pos_23",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -219,7 +233,7 @@
         "uid": "pos_24",
         "t0": "original",
         "chosen": "original",
-        "reason": "t0_cer_oracle",
+        "reason": "cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -233,6 +247,8 @@
   },
   "T2": {
     "n": 1838,
+    "select_mode": "l2",
+    "se_mode": "none",
     "chosen_counts": {
       "spk2": 289,
       "original": 1162,
@@ -246,101 +262,113 @@
     "n_l2_diff_from_t0": 0,
     "n_catastrophe_revert": 0,
     "n_would_se": 0,
+    "n_l2_degraded_no_cos": 1838,
     "cos_sidecar_loaded": false,
     "examples": [
+      {
+        "uid": "pos_0",
+        "t0": "spk2",
+        "chosen": "spk2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "reason": "t2_no_se"
+        }
+      },
       {
         "uid": "pos_1",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "l2_degraded_no_cos_sidecar",
         "dual_zero": true,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_9",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_2",
+        "t0": "spk1",
+        "chosen": "spk1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_15",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_3",
+        "t0": "spk1_r1",
+        "chosen": "spk1_r1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_17",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_4",
+        "t0": "spk2",
+        "chosen": "spk2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_19",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_5",
+        "t0": "spk1_r2",
+        "chosen": "spk1_r2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_21",
+        "uid": "pos_6",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       },
       {
-        "uid": "pos_23",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_7",
+        "t0": "spk1",
+        "chosen": "spk1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
-          "reason": "t2_no_se"
-        }
-      },
-      {
-        "uid": "pos_24",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
-        "se": {
-          "se_applied": false,
+          "would_apply": false,
           "reason": "t2_no_se"
         }
       }
     ],
-    "answers": "does cos-to-raw under CER slack pick a different track on dual-zero?"
+    "answers": "does cos-to-raw under CER slack pick a different track on dual-zero?",
+    "stop_loss": "L2 had no cos sidecar; do not interpret as T2 failure; skip T3"
   },
   "T3": {
     "n": 1838,
+    "select_mode": "l2",
+    "se_mode": "conditional",
     "chosen_counts": {
       "spk2": 289,
       "original": 1162,
@@ -354,13 +382,27 @@
     "n_l2_diff_from_t0": 0,
     "n_catastrophe_revert": 0,
     "n_would_se": 0,
+    "n_l2_degraded_no_cos": 1838,
     "cos_sidecar_loaded": false,
     "examples": [
+      {
+        "uid": "pos_0",
+        "t0": "spk2",
+        "chosen": "spk2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
       {
         "uid": "pos_1",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "l2_degraded_no_cos_sidecar",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -370,11 +412,11 @@
         }
       },
       {
-        "uid": "pos_9",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_2",
+        "t0": "spk1",
+        "chosen": "spk1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -383,11 +425,11 @@
         }
       },
       {
-        "uid": "pos_15",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_3",
+        "t0": "spk1_r1",
+        "chosen": "spk1_r1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -396,11 +438,11 @@
         }
       },
       {
-        "uid": "pos_17",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_4",
+        "t0": "spk2",
+        "chosen": "spk2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -409,11 +451,11 @@
         }
       },
       {
-        "uid": "pos_19",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_5",
+        "t0": "spk1_r2",
+        "chosen": "spk1_r2",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -422,11 +464,11 @@
         }
       },
       {
-        "uid": "pos_21",
+        "uid": "pos_6",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -435,24 +477,11 @@
         }
       },
       {
-        "uid": "pos_23",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
-        "se": {
-          "se_applied": false,
-          "would_apply": false,
-          "need_se_reason": "no_residual_scores",
-          "reason": "need_se_false"
-        }
-      },
-      {
-        "uid": "pos_24",
-        "t0": "original",
-        "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
-        "dual_zero": true,
+        "uid": "pos_7",
+        "t0": "spk1",
+        "chosen": "spk1",
+        "reason": "l2_degraded_no_cos_sidecar",
+        "dual_zero": false,
         "se": {
           "se_applied": false,
           "would_apply": false,
@@ -461,10 +490,13 @@
         }
       }
     ],
-    "answers": "T2 plus conditional SE"
+    "answers": "T2 plus conditional SE",
+    "stop_loss": "L2 had no cos sidecar; do not interpret as T2 failure; skip T3"
   },
   "T4": {
     "n": 1838,
+    "select_mode": "cer_oracle",
+    "se_mode": "always",
     "chosen_counts": {
       "spk2": 289,
       "original": 1162,
@@ -478,13 +510,14 @@
     "n_l2_diff_from_t0": 0,
     "n_catastrophe_revert": 0,
     "n_would_se": 1838,
+    "n_l2_degraded_no_cos": 0,
     "cos_sidecar_loaded": false,
     "examples": [
       {
         "uid": "pos_1",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -497,7 +530,7 @@
         "uid": "pos_9",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -510,7 +543,7 @@
         "uid": "pos_15",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -523,7 +556,7 @@
         "uid": "pos_17",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -536,7 +569,7 @@
         "uid": "pos_19",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -549,7 +582,7 @@
         "uid": "pos_21",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -562,7 +595,7 @@
         "uid": "pos_23",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -575,7 +608,7 @@
         "uid": "pos_24",
         "t0": "original",
         "chosen": "original",
-        "reason": "l1_oracle_cer_no_cos",
+        "reason": "t4_cer_oracle",
         "dual_zero": true,
         "se": {
           "se_applied": false,
@@ -585,6 +618,6 @@
         }
       }
     ],
-    "answers": "global SE should lose; if it wins, need_se is miscalibrated"
+    "answers": "global SE on CER-oracle enroll should lose; if it wins, need_se is miscalibrated"
   }
 }

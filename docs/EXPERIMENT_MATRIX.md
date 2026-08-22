@@ -12,6 +12,8 @@ This file is the contract. Code that disagrees is a bug.
 | **T3** | T2 | conditional | Combine track change + SE | Which factor moved Presence if both change — run T1/T2 first |
 | **T4** | T0 | always | Negative control: global SE should lose | Anything about need_se if T4 wins (then the detector is wrong) |
 
+Implementation: `CER_ORACLE_ARMS = {T0,T1,T4}`, `L2_ARMS = {T2,T3}`. A cosine sidecar that prefers a sep track must move T2 and must not move T4.
+
 Primary keys: **frozen Presence FRR and FAR** (contest RR = 1 − FAR on neg).  
 Constraints: mean CER ≤ 0.03; CER=0 rate drop ≤ 2 pp.  
 `cos(e*, e_raw)` is catastrophe-only. `p_music` / DNSMOS BAK are residual triggers.

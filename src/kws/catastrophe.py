@@ -37,7 +37,9 @@ def pick_threshold_from_clean_floor(
     Returns the grid value closest to the empirical quantile, clipped to grid.
     """
     if not clean_cos:
-        return 0.92
+        from .config import runtime
+
+        return float(runtime()["catastrophe_cos"])
     xs = sorted(float(x) for x in clean_cos)
     q = min(max(quantile, 0.0), 1.0)
     idx = min(len(xs) - 1, max(0, int(q * (len(xs) - 1))))

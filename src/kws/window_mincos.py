@@ -11,9 +11,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-MIN_DUR_SEC = 0.8
-WIN_SEC = 0.6
-HOP_SEC = 0.3
+from .config import runtime
+
+_RT = runtime()
+MIN_DUR_SEC = float(_RT["window_min_dur_sec"])
+WIN_SEC = float(_RT["window_win_sec"])
+HOP_SEC = float(_RT["window_hop_sec"])
 PERCENTILE_GRID = (5.0, 10.0, 15.0, 20.0)
 
 
