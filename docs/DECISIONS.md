@@ -25,7 +25,7 @@ Pre-BSS skip with residual models: default **OFF** until listen-100. Kind=**hypo
 
 ## Conflicts with a naive “re-run sep”
 
-1. Current `pos_neg` s1–s8 **already skip MMS-FA** (Qwen CER oracle). Redo = enrich index + T0–T4, not revive VB MMS.
+1. Current `pos_neg` s1–s8 **already skip MMS-FA** (Qwen CER oracle). A full redo is extract@sep `./run_sep.sh` (same selector, new `kws_handoff.json`), then kws T0–T4 — not revive VB MMS.
 2. `cos(e*, e_raw)` is catastrophe, not purity.
 3. Presence τ stays locked; no `FORCE_CALIB` on `ve_mix_novad`.
 4. T4 global SE is ablation; do not ship it if it merely ties T1.

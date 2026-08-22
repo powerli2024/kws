@@ -43,7 +43,9 @@ SE safety: drop SE if `cos(se, pre) < τ` (grid 0.90–0.95) or CER rises by > 0
 
 ## Do first / do not do
 
-**Do first:** dual-zero stats → enriched best_sep (per-track CER, no MMS) → T2 on dual-zero with eres cos → T1 conditional SE on original winners with high p_music → Presence veto.
+**Do first:** extract@sep `./run_sep.sh` (all BSS) → dual-zero stats → enriched best_sep (per-track CER, no MMS) → T2 on dual-zero with eres cos → T1 conditional SE on original winners with high p_music → Presence veto.
+
+BSS code lives only in [extract `sep`](https://github.com/powerli2024/extract/tree/sep). See `docs/PIPELINE.md`.
 
 **Do not:** train a new separator; MMS-FA enroll pick; test-time `cos(e, e_cmd_crop)`; SI-SDR on real KWS as a main metric; BAK↑ as speaker success; `FORCE_CALIB` on locked mix VE.
 

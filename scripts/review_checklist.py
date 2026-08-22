@@ -120,6 +120,14 @@ def main() -> int:
         "src has no MMS-FA symbols (weak complement, not a substitute for the T4 probe)",
     )
 
+    pipeline = (ROOT / "docs" / "PIPELINE.md").read_text(encoding="utf-8")
+    rerun = (ROOT / "scripts" / "rerun_sep.sh").read_text(encoding="utf-8")
+    ok(
+        "extract_sep_pipeline",
+        "clone -b sep" in pipeline and "run_sep.sh" in pipeline and "EXTRACT_BRANCH:=sep" in rerun,
+        "docs/PIPELINE.md and rerun_sep.sh point at extract@sep",
+    )
+
     failed = 0
     for name, cond, detail in CHECKS:
         mark = "PASS" if cond else "FAIL"
