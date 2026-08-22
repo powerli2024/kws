@@ -1,0 +1,93 @@
+# Frozen experiment matrix v2. Thresholds are search ranges until calibrated.
+
+schema_version: 2
+selector: oracle_cer_prefer_original  # never MMS-FA
+candidates: [original, spk1, spk2]
+cascade_input: parent_stage_streams  # s3 from s1 wavs; s4 from s2 wavs
+peak_norm: 0.7
+truncate_max_sec: 6.0
+truncate_mode: energy
+
+cer:
+  constraint_mean_max: 0.03
+  constraint_cer0_drop_max: 0.02
+  l1_slack: 0.05
+  metric_zh: pinyin
+  metric_en: char
+
+arms:
+  T0:
+    select: cer_oracle
+    se: none
+    answers: "current best_sep enroll; baseline Presence FRR/FAR"
+    stop_loss: "if rebuilt oracle mismatches best_sep, halt and inspect indexes"
+  T1:
+    select: cer_oracle
+    se: conditional
+    answers: "does need_se SE help CER-oracle enroll on Presence?"
+    stop_loss: "need_se=False subset FRR/FAR must not worsen"
+  T2:
+    select: l2_cos_to_raw_under_cer_slack
+    se: none
+    answers: "on dual-zero, can speaker/residual pick a better track than original tie-break?"
+    stop_loss: "if L2 never differs from T0, skip T3"
+  T3:
+    select: l2
+    se: conditional
+    answers: "T2 plus SE"
+    stop_loss: "same as T1 on need_se=False"
+  T4:
+    select: cer_oracle
+    se: always
+    answers: "global SE should lose; if it wins, need_se is wrong"
+    stop_loss: "do not ship T4 even if it ties T1"
+
+skip_sep:
+  after_scores: orig_unique_zero_only
+  before_bss: disabled_until_residual_calibrated
+  forbidden: duration_le_1.8s
+
+need_se:
+  p_music_orig_grid: [0.30, 0.40, 0.50]
+  p_music_sep_grid: [0.25, 0.35, 0.45]
+  snr_orig_grid_db: [3, 5, 8]
+  snr_sep_grid_db: [5, 8, 12]
+  target_trigger_rate: [0.15, 0.30]
+  se_cos_grid: [0.90, 0.91, 0.92, 0.93, 0.94, 0.95]
+  cer_slack: 0.05
+
+catastrophe_cos:
+  role: disaster_detector_not_purity
+  grid: [0.90, 0.91, 0.92, 0.93, 0.94, 0.95]
+  default_until_calibrated: 0.92
+
+window_min_cos:
+  min_dur_sec: 0.8
+  win_sec: 0.6
+  hop_sec: 0.3
+  percentile_grid: [5, 10, 15, 20]
+  lock_with: 100_listen_labels
+
+presence_veto:
+  freeze_cmd: datasetA pos/neg
+  freeze_tau:
+    zh: 0.29305
+    en: 0.357868
+  encoder: eres2netv2
+  go: frr_or_far_down_other_not_up
+  do_not_force_calib_on: ve_mix_novad
+
+eval_subsets:
+  all_kws: 1838
+  original_winners: from best_sep oracle_stream==original
+  dual_zero: original and sep both CER 0
+  orig_unique_zero: skip-sep candidate
+  listen100: residual labels when available
+  hard_neg: only if uid guarantees different speakers — otherwise unused
+
+do_not:
+  - train a new separator
+  - use MMS-FA to pick enroll
+  - use cos(e, e_cmd_crop) at test time
+  - use SI-SDR on real KWS as a main metric
+  - treat DNSMOS BAK up as speaker success

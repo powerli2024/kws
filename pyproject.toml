@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kws-enroll-purify"
+version = "0.2.0"
+description = "Speaker-first KWS enrollment purification (oracle CER, skip-sep, residual/SE gates)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "editdistance",
+  "pypinyin",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+audio = ["librosa", "soundfile"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

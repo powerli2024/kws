@@ -1,0 +1,5 @@
+numpy
+editdistance
+pypinyin
+pyyaml
+pytest

@@ -1,0 +1,85 @@
+{
+  "n_best_sep": 1838,
+  "oracle_stream_counts": {
+    "spk2": 289,
+    "original": 1162,
+    "spk1": 274,
+    "spk1_r1": 30,
+    "spk1_r2": 40,
+    "spk2_r2": 25,
+    "spk2_r1": 18
+  },
+  "best_stage_counts": {
+    "s1_onnx_full": 1605,
+    "s7_cv_then_onnx_gate/thr_a": 26,
+    "s4_cv_cascade": 32,
+    "s3_onnx_cascade": 60,
+    "s5_onnx_then_cv_gate/thr_a": 2,
+    "s2_cv_full": 100,
+    "s6_onnx_then_onnx_gate/thr_a": 4,
+    "s7_cv_then_onnx_gate/thr_b": 7,
+    "s8_cv_then_cv_gate/thr_a": 1,
+    "s6_onnx_then_onnx_gate/thr_b": 1
+  },
+  "n_original_winners": 1162,
+  "missing_stage_index": 0,
+  "original_winners_at_winning_stage": {
+    "n": 1162,
+    "orig_cer0": 1134,
+    "dual_zero": 1045,
+    "dual_zero_rate_among_n": 0.8993115318416524,
+    "dual_zero_rate_among_orig_cer0": 0.9215167548500882,
+    "orig_unique_zero": 89,
+    "orig_unique_zero_rate_among_n": 0.076592082616179,
+    "orig_unique_zero_rate_among_orig_cer0": 0.07848324514991181,
+    "missing": 0,
+    "evidence": "stage index streams CER; oracle_of prefers original on ties"
+  },
+  "all_items_at_winning_stage": {
+    "n": 1838,
+    "orig_cer0": 1134,
+    "dual_zero": 1045,
+    "dual_zero_rate_among_n": 0.5685527747551686,
+    "dual_zero_rate_among_orig_cer0": 0.9215167548500882,
+    "orig_unique_zero": 89,
+    "orig_unique_zero_rate_among_n": 0.04842219804134929,
+    "orig_unique_zero_rate_among_orig_cer0": 0.07848324514991181,
+    "missing": 0,
+    "evidence": "stage index streams CER; oracle_of prefers original on ties"
+  },
+  "s1_all": {
+    "n": 1838,
+    "orig_cer0": 1137,
+    "dual_zero": 1052,
+    "dual_zero_rate_among_n": 0.5723612622415669,
+    "dual_zero_rate_among_orig_cer0": 0.9252418645558487,
+    "orig_unique_zero": 85,
+    "orig_unique_zero_rate_among_n": 0.046245919477693145,
+    "orig_unique_zero_rate_among_orig_cer0": 0.07475813544415127,
+    "missing": 0,
+    "evidence": "stage index streams CER; oracle_of prefers original on ties"
+  },
+  "s1_original_winners": {
+    "n": 1271,
+    "orig_cer0": 1137,
+    "dual_zero": 1052,
+    "dual_zero_rate_among_n": 0.8276947285601888,
+    "dual_zero_rate_among_orig_cer0": 0.9252418645558487,
+    "orig_unique_zero": 85,
+    "orig_unique_zero_rate_among_n": 0.06687647521636507,
+    "orig_unique_zero_rate_among_orig_cer0": 0.07475813544415127,
+    "missing": 0,
+    "evidence": "stage index streams CER; oracle_of prefers original on ties"
+  },
+  "interpretation": {
+    "dual_zero_means": "original CER=0 and at least one sep track CER=0. argmin CER has no gradient; current oracle_of keeps original.",
+    "orig_unique_zero_means": "original CER=0 and every sep track CER>0. Text-safe to skip using the sep wav (BSS hurt the transcript).",
+    "skip_sep_branch": "feasibility from orig_unique_zero; dual_zero needs L2 not skip",
+    "tie_break_original_on_dual_zero": 1045,
+    "dual_zero_n_sep_tracks_at_cer0": {
+      "1": 508,
+      "2": 537
+    },
+    "kind": "evidence"
+  }
+}

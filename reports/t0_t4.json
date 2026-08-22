@@ -1,0 +1,590 @@
+{
+  "T0": {
+    "n": 1838,
+    "chosen_counts": {
+      "spk2": 289,
+      "original": 1162,
+      "spk1": 274,
+      "spk1_r1": 30,
+      "spk1_r2": 40,
+      "spk2_r2": 25,
+      "spk2_r1": 18
+    },
+    "n_dual_zero": 1045,
+    "n_l2_diff_from_t0": 0,
+    "n_catastrophe_revert": 0,
+    "n_would_se": 0,
+    "cos_sidecar_loaded": false,
+    "examples": [
+      {
+        "uid": "pos_1",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_9",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_15",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_17",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_19",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_21",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_23",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      },
+      {
+        "uid": "pos_24",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t0_no_se"
+        }
+      }
+    ],
+    "answers": "current CER oracle enroll"
+  },
+  "T1": {
+    "n": 1838,
+    "chosen_counts": {
+      "spk2": 289,
+      "original": 1162,
+      "spk1": 274,
+      "spk1_r1": 30,
+      "spk1_r2": 40,
+      "spk2_r2": 25,
+      "spk2_r1": 18
+    },
+    "n_dual_zero": 1045,
+    "n_l2_diff_from_t0": 0,
+    "n_catastrophe_revert": 0,
+    "n_would_se": 0,
+    "cos_sidecar_loaded": false,
+    "examples": [
+      {
+        "uid": "pos_1",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_9",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_15",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_17",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_19",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_21",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_23",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_24",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "t0_cer_oracle",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      }
+    ],
+    "answers": "does conditional SE on CER winners help Presence?"
+  },
+  "T2": {
+    "n": 1838,
+    "chosen_counts": {
+      "spk2": 289,
+      "original": 1162,
+      "spk1": 274,
+      "spk1_r1": 30,
+      "spk1_r2": 40,
+      "spk2_r2": 25,
+      "spk2_r1": 18
+    },
+    "n_dual_zero": 1045,
+    "n_l2_diff_from_t0": 0,
+    "n_catastrophe_revert": 0,
+    "n_would_se": 0,
+    "cos_sidecar_loaded": false,
+    "examples": [
+      {
+        "uid": "pos_1",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_9",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_15",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_17",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_19",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_21",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_23",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      },
+      {
+        "uid": "pos_24",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "reason": "t2_no_se"
+        }
+      }
+    ],
+    "answers": "does cos-to-raw under CER slack pick a different track on dual-zero?"
+  },
+  "T3": {
+    "n": 1838,
+    "chosen_counts": {
+      "spk2": 289,
+      "original": 1162,
+      "spk1": 274,
+      "spk1_r1": 30,
+      "spk1_r2": 40,
+      "spk2_r2": 25,
+      "spk2_r1": 18
+    },
+    "n_dual_zero": 1045,
+    "n_l2_diff_from_t0": 0,
+    "n_catastrophe_revert": 0,
+    "n_would_se": 0,
+    "cos_sidecar_loaded": false,
+    "examples": [
+      {
+        "uid": "pos_1",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_9",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_15",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_17",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_19",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_21",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_23",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      },
+      {
+        "uid": "pos_24",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": false,
+          "need_se_reason": "no_residual_scores",
+          "reason": "need_se_false"
+        }
+      }
+    ],
+    "answers": "T2 plus conditional SE"
+  },
+  "T4": {
+    "n": 1838,
+    "chosen_counts": {
+      "spk2": 289,
+      "original": 1162,
+      "spk1": 274,
+      "spk1_r1": 30,
+      "spk1_r2": 40,
+      "spk2_r2": 25,
+      "spk2_r1": 18
+    },
+    "n_dual_zero": 1045,
+    "n_l2_diff_from_t0": 0,
+    "n_catastrophe_revert": 0,
+    "n_would_se": 1838,
+    "cos_sidecar_loaded": false,
+    "examples": [
+      {
+        "uid": "pos_1",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_9",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_15",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_17",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_19",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_21",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_23",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      },
+      {
+        "uid": "pos_24",
+        "t0": "original",
+        "chosen": "original",
+        "reason": "l1_oracle_cer_no_cos",
+        "dual_zero": true,
+        "se": {
+          "se_applied": false,
+          "would_apply": true,
+          "reason": "t4_global_se_backend_missing",
+          "safety": "must_check_cos_se_pre_and_presence"
+        }
+      }
+    ],
+    "answers": "global SE should lose; if it wins, need_se is miscalibrated"
+  }
+}
