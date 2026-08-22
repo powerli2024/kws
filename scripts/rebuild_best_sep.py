@@ -73,7 +73,17 @@ def main() -> None:
     cache: dict[tuple[str, str], dict[str, dict]] = {}
     out = []
     n_mismatch = 0
+    n_skipped = 0
     for rec in winners:
+        if rec.get("ok") is False:
+            n_skipped += 1
+            continue
+        dest_rel = rec.get("dest_rel")
+        if dest_rel:
+            dest = args.pos_neg / "best_sep" / dest_rel
+            if not dest.is_file():
+                n_skipped += 1
+                continue
         split, uid, stage = rec["split"], rec["uid"], rec["best_stage"]
         key = (split, stage)
         if key not in cache:
@@ -105,7 +115,7 @@ def main() -> None:
             }
         )
     write_jsonl(args.out, out)
-    print(f"wrote {args.out} n={len(out)} oracle_mismatch={n_mismatch}")
+    print(f"wrote {args.out} n={len(out)} oracle_mismatch={n_mismatch} skipped_invalid={n_skipped}")
 
 
 if __name__ == "__main__":
