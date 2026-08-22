@@ -25,12 +25,13 @@ Contest Presence / mix ASR stays on extract **`main`** `ve/`. Do not run `./ve.s
 ```bash
 cd /root
 git clone -b sep https://github.com/powerli2024/extract.git extract
-cd /root/extract && chmod +x *.sh run_sep.sh
+cd /root/extract && chmod +x *.sh run_sep.sh pick_python.sh
 export DATA_DIR=/root/autodl-tmp/datasetA
 export VM_OUT=/root/autodl-tmp/kws_sep
 export MOSS_CKPT_DIR=/root/autodl-tmp/checkpoints
 export ASR_MODEL_DIR=/root/autodl-tmp/Qwen3-ASR-1.7B
-./setup_env.sh && source ./env.sh
+./setup_env.sh          # 装进 conda env ve（与 Presence 同一 PYTHON_BIN）
+source ./env.sh         # 或: conda activate ve && source ve/.env_ve
 ./download_models.sh
 ./check_env.sh
 ./run_sep.sh --limit 20
