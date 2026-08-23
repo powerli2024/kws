@@ -8,13 +8,13 @@ This file is the contract. Code that disagrees is a bug.
 |---|---|---|---|---|
 | **T0** | CER oracle, original wins ties | none | Current enroll Presence FRR/FAR / contest | Whether a different track is purer |
 | **T1** | T0 | conditional | Does residual-triggered SE help CER-oracle enroll? | Whether the track choice was wrong |
-| **T2** | L1 CER slack 0.05 + L2 `cos(track, raw) − λ p_music` | none | On **dual-zero** items, can speaker/residual break the original tie-break without hurting CER? | Whether SE is useful |
+| **T2** | L1 same-CER + L2 `q_kw` (cos-to-raw is a gate only) | none | On **dual-zero**, does known-wake confidence beat original-tie? | Whether SE is useful; whether candidates are good (need Oracle) |
 | **T3** | T2 | conditional | Combine track change + SE | Which factor moved Presence if both change — run T1/T2 first |
 | **T4** | T0 | always | Negative control: global SE should lose | Anything about need_se if T4 wins (then the detector is wrong) |
 
 Implementation: `CER_ORACLE_ARMS = {T0,T1,T4}`, `L2_ARMS = {T2,T3}`. A cosine sidecar that prefers a sep track must move T2 and must not move T4.
 
-**KWS-local keys (this repo):** enroll↔CMD cosine EER / AUC / mean_gap on datasetA pos vs neg.  
+**KWS-local keys (this repo):** enroll↔CMD cosine at locked τ **by language**, with Wilson/bootstrap CIs, pos P10 / neg P90, paired Δs. EER/AUC are secondary.  
 **Later contest keys:** frozen Presence FRR and FAR (extract `main`).  
 Constraints: mean CER ≤ 0.03; CER=0 rate drop ≤ 2 pp.  
 `cos(e*, e_raw)` is catastrophe-only. `p_music` / DNSMOS BAK are residual triggers.

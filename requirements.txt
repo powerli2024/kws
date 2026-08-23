@@ -4,6 +4,5 @@ pypinyin
 pyyaml
 pytest
 soundfile
-# Optional for real ERes sidecar / CMD eval:
-#   modelscope torch
-# FFT --backend fft is plumbing only and must not rank groups.
+# ERes / CMD eval (same interpreter as the run):
+#   python -m pip install -U torch modelscope addict simplejson sortedcontainers datasets

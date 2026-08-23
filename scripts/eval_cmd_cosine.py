@@ -130,10 +130,15 @@ def main() -> int:
                 cmd_cache[ck] = enc.embed(cw, csr)
             e_cmd = cmd_cache[ck]
             cos = float(cosine_sim(e_enroll, e_cmd))
+            wake = str(rec.get("wake_text") or (drow or {}).get("唤醒文本") or "")
+            lang = rec.get("lang") or (drow or {}).get("lang")
+            if not lang:
+                lang = "zh" if any("\u4e00" <= ch <= "\u9fff" for ch in wake) else "en"
             row = {
                 "group": name,
                 "uid": uid,
                 "split": split,
+                "lang": lang,
                 "cos_enroll_cmd": max(-1.0, min(1.0, cos)),
                 "enroll": str(enroll),
                 "cmd": str(cmd),

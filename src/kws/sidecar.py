@@ -9,6 +9,7 @@ from .iojson import load_jsonl
 
 COS_PAYLOAD_KEYS = ("cos_to_raw", "scores", "cos")
 PM_PAYLOAD_KEYS = ("p_music", "pmusic")
+QKW_PAYLOAD_KEYS = ("q_kw", "nll")
 
 
 class SidecarError(ValueError):
@@ -99,6 +100,34 @@ def parse_pmusic_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, di
             raise SidecarError(f"uid={uid}: p_music dict is empty")
         return uid, out
     raise SidecarError(f"uid={uid}: p_music must be a float or dict of stream→float")
+
+
+def parse_qkw_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, dict[str, float]]:
+    """Higher is better. `q_kw` is used as-is; `nll` is negated."""
+    uid = _require_uid(row, index=index)
+    key, payload = _exactly_one_payload(row, QKW_PAYLOAD_KEYS, uid=uid)
+    if not isinstance(payload, dict):
+        raise SidecarError(f"uid={uid}: {key} must be a dict of stream→float")
+    out: dict[str, float] = {}
+    for name, raw in payload.items():
+        try:
+            x = float(raw)
+        except (TypeError, ValueError) as e:
+            raise SidecarError(f"uid={uid}: {key}[{name!r}]={raw!r} is not a float") from e
+        out[str(name)] = -x if key == "nll" else x
+    if not out:
+        raise SidecarError(f"uid={uid}: {key} is empty after parse")
+    return uid, out
+
+
+def load_qkw_sidecar(path: Path) -> dict[str, dict[str, float]]:
+    out: dict[str, dict[str, float]] = {}
+    for i, row in enumerate(load_jsonl(path)):
+        uid, payload = parse_qkw_row(row, index=i)
+        if uid in out:
+            raise SidecarError(f"duplicate uid={uid} in {path}")
+        out[uid] = payload
+    return out
 
 
 def load_cos_sidecar(path: Path) -> dict[str, dict[str, float]]:

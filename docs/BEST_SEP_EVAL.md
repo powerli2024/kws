@@ -13,6 +13,8 @@ Ranking by CER just restates the tie-break.
 
 This branch **does not** run the mix Presence gate. It **writes several `best_sep` trees** and ranks them with CMD cosine.
 
+Selector contract (v3): `cos(track, raw)` is **catastrophe only**. T2 ranks by `q_kw` (known-wake continuous confidence). See `docs/SELECTOR.md`. Without `--qkw-jsonl`, T2 degrades to T0 and is **not** a speaker experiment.
+
 ## Why the ERes sidecar was empty
 
 The wavs were always there:
@@ -60,7 +62,7 @@ Groups written under `--out-root`:
 |---|---|
 | `raw_kws` | always datasetA KWS (no BSS) |
 | `t0` | CER oracle, original wins ties (current selector) |
-| `t2` | L2 `cos(track, raw)` under CER slack 0.05 |
+| `e2_qkw` / `t2` | same-CER + `q_kw`; `cos(track, raw)` catastrophe gate only |
 | `skip_then_t0` | orig-unique-zero → original; else T0 |
 | `skip_then_t2` | orig-unique-zero → original; else T2 |
 | `t1_spectral` / `t4_spectral` | optional; `--with-se-groups` (spectral SE, not neural) |
@@ -74,7 +76,7 @@ For each group, each uid: `score = cos(ERes(enroll), ERes(cmd))`.
 - report **mean_gap**, **AUC**, **EER** (+ threshold)
 - locked VE τ (zh 0.29305 / en 0.357868) is a **probe** (`locked_tau_probe_not_adopt`), not an adopt rule
 
-Rank: lower EER, then larger mean_gap, then higher AUC. CER mean ≤ 0.03 still applies as a constraint (`compare_best_sep.py`).
+Primary rank: locked-τ FAR then FRR **by language**, then pos P10 / neg P90, with Wilson intervals. EER/AUC are secondary. 474 neg ≈ 0.211 pp per error. CER mean ≤ 0.03 is still a constraint.
 
 ## Later (not this branch)
 

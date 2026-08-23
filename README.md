@@ -25,7 +25,7 @@ So “63% original” is mostly a **tie-break**, not proof that BSS is useless. 
 | **Fill ERes sidecar from existing wavs** | Wait for a missing-wav myth (`kws_path=/root/...` is a red herring) |
 | Export **several** `best_sep_*` groups | Rank groups by mean oracle CER |
 | Rank groups with **enroll↔CMD cosine** (pos vs neg) | Treat `cos(*, raw)` as purity |
-| T2 L2 on dual-zero; skip-sep only orig-unique-zero | Duration skip-sep (`dur≤1.8s`) |
+| T2 = `q_kw` + catastrophe; skip-sep only orig-unique-zero | Rank by `cos(*, raw)` or heuristic p_music |
 | Later: frozen Presence on extract@main using those groups | Wire Presence / `FORCE_CALIB` in this repo |
 
 ## Layout

@@ -55,7 +55,7 @@ def validate_matrix(data: dict[str, Any]) -> None:
     win = data.get("window_min_cos") or {}
     eq("runtime.l1_slack", rt.get("l1_slack"), "cer.l1_slack", cer.get("l1_slack"))
     ns = data.get("need_se") or {}
-    eq("runtime.l1_slack", rt.get("l1_slack"), "need_se.cer_slack", ns.get("cer_slack"))
+    eq("runtime.se_cer_slack", rt.get("se_cer_slack"), "need_se.cer_slack", ns.get("cer_slack"))
     eq(
         "runtime.catastrophe_cos",
         rt.get("catastrophe_cos"),
@@ -66,6 +66,13 @@ def validate_matrix(data: dict[str, Any]) -> None:
     eq("runtime.window_min_dur_sec", rt.get("window_min_dur_sec"), "window_min_cos.min_dur_sec", win.get("min_dur_sec"))
     eq("runtime.window_win_sec", rt.get("window_win_sec"), "window_min_cos.win_sec", win.get("win_sec"))
     eq("runtime.window_hop_sec", rt.get("window_hop_sec"), "window_min_cos.hop_sec", win.get("hop_sec"))
+    if "min_speech_for_veto_sec" in win:
+        eq(
+            "runtime.window_min_speech_for_veto_sec",
+            rt.get("window_min_speech_for_veto_sec"),
+            "window_min_cos.min_speech_for_veto_sec",
+            win.get("min_speech_for_veto_sec"),
+        )
 
     arms = data.get("arms") or {}
     expected = {
@@ -80,7 +87,7 @@ def validate_matrix(data: dict[str, Any]) -> None:
         got_sel = spec.get("select")
         got_se = spec.get("se")
         if sel == "l2":
-            ok_sel = got_sel in ("l2", "l2_cos_to_raw_under_cer_slack")
+            ok_sel = got_sel in ("l2", "l2_text_residual_cos_gate", "l2_cos_to_raw_under_cer_slack")
         else:
             ok_sel = got_sel == sel
         if not ok_sel:
@@ -138,9 +145,15 @@ def validate_code_defaults() -> None:
     chk("need_se.DEFAULT_SNR_ORIG", need_se_mod.DEFAULT_SNR_ORIG, "snr_orig_db")
     chk("need_se.DEFAULT_SNR_SEP", need_se_mod.DEFAULT_SNR_SEP, "snr_sep_db")
     chk("need_se.DEFAULT_SE_COS_THR", need_se_mod.DEFAULT_SE_COS_THR, "se_cos_thr")
+    chk("need_se.CER_SLACK", need_se_mod.CER_SLACK, "se_cer_slack")
     chk("window_mincos.MIN_DUR_SEC", win_mod.MIN_DUR_SEC, "window_min_dur_sec")
     chk("window_mincos.WIN_SEC", win_mod.WIN_SEC, "window_win_sec")
     chk("window_mincos.HOP_SEC", win_mod.HOP_SEC, "window_hop_sec")
+    chk(
+        "window_mincos.MIN_SPEECH_FOR_VETO_SEC",
+        win_mod.MIN_SPEECH_FOR_VETO_SEC,
+        "window_min_speech_for_veto_sec",
+    )
     chk("skip_sep.SKIP_BSS_P_MUSIC_MAX", skip_mod.SKIP_BSS_P_MUSIC_MAX, "skip_bss_p_music_max")
     chk("skip_sep.SKIP_BSS_SNR_MIN_DB", skip_mod.SKIP_BSS_SNR_MIN_DB, "skip_bss_snr_min_db")
     chk("skip_sep.SKIP_BSS_ENABLED_DEFAULT", skip_mod.SKIP_BSS_ENABLED_DEFAULT, "skip_bss_enabled")

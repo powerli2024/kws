@@ -12,13 +12,17 @@ from .wav_paths import resolve_kws_wav, resolve_stream_wav
 
 # Local ranking groups. Presence / mix gate is a later extract@main step.
 GROUP_SPECS = (
-    ("raw_kws", "always datasetA kws; no BSS"),
-    ("t0", "CER oracle (original wins ties)"),
-    ("t2", "L2 cos-to-raw under CER slack"),
+    ("e0_raw", "E0: always datasetA kws"),
+    ("e1_t0", "E1: CER oracle (original wins ties)"),
+    ("e2_qkw", "E2: q_kw rank + cos-to-raw catastrophe gate"),
+    ("oracle_cmd", "offline max cos(enroll,cmd); not deployable"),
+    ("raw_kws", "alias of e0_raw"),
+    ("t0", "alias of e1_t0"),
+    ("t2", "alias of e2_qkw"),
     ("skip_then_t0", "orig-unique-zero → original; else T0"),
     ("skip_then_t2", "orig-unique-zero → original; else T2"),
-    ("t1_spectral", "T0 + conditional spectral SE (landable backend)"),
-    ("t4_spectral", "T0 + always spectral SE (negative control)"),
+    ("t1_spectral", "T0 + conditional spectral SE"),
+    ("t4_spectral", "E6: always spectral SE (negative control)"),
 )
 
 
@@ -28,12 +32,15 @@ def chosen_stream(rec: Mapping[str, Any], group: str) -> tuple[str, str]:
     unique = bool(rec.get("orig_unique_zero") or rec.get("skip_sep_after_scores"))
     t0 = str((arms.get("T0") or {}).get("chosen") or rec.get("oracle_stream") or "original")
     t2 = str((arms.get("T2") or {}).get("chosen") or t0)
-    if group == "raw_kws":
+    if group in ("raw_kws", "e0_raw"):
         return "raw_kws", "always_raw_kws"
-    if group == "t0":
+    if group in ("t0", "e1_t0"):
         return t0, "t0_cer_oracle"
-    if group == "t2":
-        return t2, "t2_l2"
+    if group in ("t2", "e2_qkw"):
+        return t2, "e2_qkw"
+    if group == "oracle_cmd":
+        name = str(rec.get("oracle_cmd_stream") or "")
+        return (name, "cmd_label_oracle") if name else ("reject", "oracle_cmd_missing")
     if group == "skip_then_t0":
         return ("original", "skip_unique_zero") if unique else (t0, "t0_cer_oracle")
     if group == "skip_then_t2":
@@ -85,7 +92,6 @@ def export_one(
     uid = str(rec["uid"])
     split = str(rec.get("split") or "")
     stream, reason = chosen_stream(rec, group)
-    src = resolve_enroll_wav(rec, stream, pos_neg=pos_neg, data_dir=data_dir)
     dest_rel = f"{split}/{uid}.wav"
     dest = dest_root / dest_rel
     out: dict[str, Any] = {
@@ -104,6 +110,10 @@ def export_one(
         "dest_rel": dest_rel,
         "ok": False,
     }
+    if stream == "reject":
+        out["error"] = "rejected_enroll"
+        return out
+    src = resolve_enroll_wav(rec, stream, pos_neg=pos_neg, data_dir=data_dir)
     if src is None:
         out["error"] = "missing_src_wav"
         return out
@@ -111,10 +121,28 @@ def export_one(
     want_se = se_wanted(group, rec, stream) and se_backend not in ("", "none", "off")
     if want_se:
         wav, sr = load_wav_mono(src)
-        applied = apply_se(wav, sr, backend=se_backend)
-        save_wav_mono(dest, applied["wav"], sr)
-        out["se_applied"] = bool(applied.get("se_applied"))
-        out["se_reason"] = applied.get("reason")
+        encoder = rec.get("_encoder")
+        if encoder is None:
+            shutil.copy2(src, dest)
+            out["se_applied"] = False
+            out["se_reason"] = "se_safety_encoder_missing_refused"
+        else:
+            from .audio import cosine_sim
+            from .need_se import se_safety_ok
+
+            y = apply_se(wav, sr, backend=se_backend)["wav"]
+            cos = float(cosine_sim(encoder.embed(y, sr), encoder.embed(wav, sr)))
+            ok, why = se_safety_ok(cos_se_pre=cos, cer_se=0.0, cer_pre=0.0)
+            if not ok:
+                shutil.copy2(src, dest)
+                out["se_applied"] = False
+                out["se_reason"] = f"se_safety_{why}"
+                out["cos_se_pre"] = cos
+            else:
+                save_wav_mono(dest, y, sr)
+                out["se_applied"] = True
+                out["se_reason"] = "spectral_subtract"
+                out["cos_se_pre"] = cos
     else:
         shutil.copy2(src, dest)
         out["se_applied"] = False

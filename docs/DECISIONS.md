@@ -15,6 +15,14 @@ From existing stage indexes, **no GPU re-run**:
 
 `oracle_of` prefers original on ties, so those 1045 original enrolls are **tie-break artifacts**. Kind=**evidence**.
 
+## datasetA ids (evidence)
+
+On `d:\media\datasetA`, neg has **474 unique `id`s** (not 388, no `id=364`×87). File duration 1.09–4.78 s, 16 kHz mono, none &lt; 0.8 s. Still: **`id` is not `speaker_id`**. Kind=**evidence**.
+
+## Selector v3 (decision)
+
+`cos(c, raw)` as T2 rank is structurally biased toward original. Official T2 is `q_kw` + catastrophe gate. Heuristic `p_music` is not official. See `docs/SELECTOR.md`. Kind=**decision** after review.
+
 ## Skip-sep (inference)
 
 Pre-proposal hope: many clean originals → skip BSS. Data: unique-zero is only 89 clips. **Skip-sep after scores is a 7.7% branch, not the main path.** Dual-zero must go to L2, not skip. Kind=**inference** from the table.

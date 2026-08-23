@@ -61,9 +61,13 @@ def _import_modelscope_sv():
         import modelscope as ms
         from modelscope.pipelines import pipeline
     except ImportError as e:
+        hint = (
+            f"{sys.executable} -m pip install -U modelscope addict simplejson sortedcontainers "
+            "datasets oss2"
+        )
         raise ImportError(
-            "modelscope is not installed in this interpreter. "
-            f"{sys.executable} -m pip install -U modelscope"
+            f"speaker-verification pipeline import failed ({type(e).__name__}: {e}). "
+            f"Install into THIS interpreter: {hint}"
         ) from e
     tasks_sv = "speaker-verification"
     try:

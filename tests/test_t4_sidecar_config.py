@@ -19,7 +19,7 @@ def test_t4_not_in_l2_set():
     assert "T4" not in L2_ARMS
 
 
-def test_t4_keeps_cer_oracle_when_sidecar_prefers_sep():
+def test_t4_keeps_cer_oracle_when_qkw_prefers_sep():
     rec = {
         "uid": "u",
         "oracle_stream": "original",
@@ -27,10 +27,28 @@ def test_t4_keeps_cer_oracle_when_sidecar_prefers_sep():
         "streams": {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}},
     }
     cos = {"u": {"original": 0.5, "spk1": 0.99}}
-    t4 = pick_track("T4", rec, cos_map=cos, pm_map={})
-    t2 = pick_track("T2", rec, cos_map=cos, pm_map={})
+    qkw = {"u": {"original": 0.4, "spk1": 0.95}}
+    t4 = pick_track("T4", rec, cos_map=cos, pm_map={}, qkw_map=qkw)
+    t2 = pick_track("T2", rec, cos_map=cos, pm_map={}, qkw_map=qkw)
     assert t4["chosen"] == "original"
     assert t2["chosen"] == "spk1"
+
+
+def test_t2_ignores_cos_as_rank():
+    rec = {
+        "uid": "u",
+        "oracle_stream": "original",
+        "dual_zero": True,
+        "streams": {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}},
+    }
+    t2 = pick_track(
+        "T2",
+        rec,
+        cos_map={"u": {"original": 0.50, "spk1": 0.99}},
+        pm_map={},
+        qkw_map={},
+    )
+    assert t2["chosen"] == "original" and t2["l2_degraded"]
 
 
 def test_sidecar_empty_scores_raises():
@@ -43,18 +61,24 @@ def test_sidecar_whole_row_forbidden():
         parse_cos_row({"uid": "a", "split": "pos", "original": 1.0})
 
 
-def test_partial_cos_sidecar_raises():
+def test_partial_qkw_sidecar_raises():
     rec = {
         "uid": "u",
         "oracle_stream": "original",
         "dual_zero": True,
         "streams": {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}},
     }
-    with pytest.raises(SidecarError, match="missing from cos sidecar"):
-        pick_track("T2", rec, cos_map={"other": {"original": 1.0, "spk1": 0.9}}, pm_map={})
+    with pytest.raises(SidecarError, match="missing from q_kw sidecar"):
+        pick_track(
+            "T2",
+            rec,
+            cos_map={},
+            pm_map={},
+            qkw_map={"other": {"original": 0.9, "spk1": 0.8}},
+        )
 
 
-def test_l2_missing_stream_cos_raises():
+def test_l2_missing_stream_qkw_raises():
     streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}}
-    with pytest.raises(SidecarError, match="missing streams"):
-        select_l1_l2(streams, cos_to_raw={"original": 1.0})
+    with pytest.raises(SidecarError, match="q_kw missing streams"):
+        select_l1_l2(streams, q_kw={"original": 0.9})

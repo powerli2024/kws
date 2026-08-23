@@ -68,17 +68,19 @@ def main() -> int:
         },
     }
     cos = {"probe": {"original": 0.50, "spk1": 0.99, "spk2": 0.10}}
-    t4 = pick_track("T4", rec, cos_map=cos, pm_map={})
-    t2 = pick_track("T2", rec, cos_map=cos, pm_map={})
+    qkw = {"probe": {"original": 0.40, "spk1": 0.95, "spk2": 0.10}}
+    t4 = pick_track("T4", rec, cos_map=cos, pm_map={}, qkw_map=qkw)
+    t2 = pick_track("T2", rec, cos_map=cos, pm_map={}, qkw_map=qkw)
+    t2_cos_only = pick_track("T2", rec, cos_map=cos, pm_map={}, qkw_map={})
     ok(
-        "t4_ignores_cos_sidecar",
+        "t4_ignores_qkw_sidecar",
         t4["chosen"] == "original" and t4["reason"] == "t4_cer_oracle",
-        "with a sidecar that prefers spk1, T4 still keeps CER-oracle original",
+        "with a q_kw sidecar that prefers spk1, T4 still keeps CER-oracle original",
     )
     ok(
-        "t2_uses_cos_sidecar",
-        t2["chosen"] == "spk1",
-        "same sidecar makes T2 pick spk1 (probe is live)",
+        "t2_uses_qkw_not_cos",
+        t2["chosen"] == "spk1" and t2_cos_only["chosen"] == "original",
+        "q_kw moves T2 to spk1; cos-only does not (cos is not a purity score)",
     )
 
     sidecar_ok = True
@@ -98,13 +100,14 @@ def main() -> int:
     ok("sidecar_rejects_ambiguous", sidecar_ok, sidecar_detail)
 
     partial_ok = True
-    partial_detail = "non-empty cos map missing uid raises SidecarError"
+    partial_detail = "non-empty q_kw map missing uid raises SidecarError"
     try:
         pick_track(
             "T2",
             rec,
-            cos_map={"other": {"original": 1.0, "spk1": 0.9, "spk2": 0.1}},
+            cos_map={},
             pm_map={},
+            qkw_map={"other": {"original": 0.9, "spk1": 0.8, "spk2": 0.1}},
         )
         partial_ok = False
         partial_detail = "partial sidecar was accepted"

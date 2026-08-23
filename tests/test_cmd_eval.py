@@ -1,4 +1,6 @@
 from kws.cmd_eval import auc_scores, eer_and_threshold, rank_groups, summarize_cmd_scores
+from kws.sidecar import parse_qkw_row
+from kws.stats import wilson_interval
 from kws.export_groups import chosen_stream
 from kws.iojson import limit_rows_balanced
 
@@ -35,6 +37,13 @@ def test_rank_prefers_lower_eer():
     r = rank_groups({"t0": b, "t2": a}, baseline="t0")
     assert r["best"] == "t2"
     assert r["beats_baseline"]
+
+
+def test_wilson_and_qkw_nll():
+    p, lo, hi = wilson_interval(0, 474)
+    assert p == 0.0 and hi > 0
+    uid, payload = parse_qkw_row({"uid": "pos_0", "nll": {"original": 2.0, "spk1": 0.5}})
+    assert uid == "pos_0" and payload["spk1"] > payload["original"]
 
 
 def test_chosen_stream_skip_and_t2():

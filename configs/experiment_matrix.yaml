@@ -12,7 +12,7 @@ truncate_mode: energy
 cer:
   constraint_mean_max: 0.03
   constraint_cer0_drop_max: 0.02
-  l1_slack: 0.05
+  l1_slack: 0.0
   metric_zh: pinyin
   metric_en: char
 
@@ -28,10 +28,10 @@ arms:
     answers: "does need_se SE help CER-oracle enroll on Presence?"
     stop_loss: "need_se=False subset FRR/FAR must not worsen"
   T2:
-    select: l2_cos_to_raw_under_cer_slack
+    select: l2_text_residual_cos_gate
     se: none
-    answers: "on dual-zero, can speaker/residual pick a better track than original tie-break?"
-    stop_loss: "if L2 never differs from T0, skip T3"
+    answers: "on dual-zero, does q_kw + catastrophe gate beat CER original-tie?"
+    stop_loss: "if no q_kw sidecar, do not claim T2 failed; skip T3"
   T3:
     select: l2
     se: conditional
@@ -55,7 +55,7 @@ need_se:
   snr_sep_grid_db: [5, 8, 12]
   target_trigger_rate: [0.15, 0.30]
   se_cos_grid: [0.90, 0.91, 0.92, 0.93, 0.94, 0.95]
-  cer_slack: 0.05
+  cer_slack: 0.05  # SE regression slack; not the L1 selector slack
 
 catastrophe_cos:
   role: disaster_detector_not_purity
@@ -64,10 +64,12 @@ catastrophe_cos:
 
 window_min_cos:
   min_dur_sec: 0.8
-  win_sec: 0.6
-  hop_sec: 0.3
+  win_sec: 0.8
+  hop_sec: 0.4
+  min_speech_for_veto_sec: 1.2
   percentile_grid: [5, 10, 15, 20]
   lock_with: 100_listen_labels
+  note: "0.6s windows are not assumed reliable for ERes2NetV2; do not veto if VAD speech < 1.2s"
 
 presence_veto:
   freeze_cmd: datasetA pos/neg
@@ -89,7 +91,8 @@ eval_subsets:
 # Single source of runtime defaults. review_checklist and kws.config validate
 # these against catastrophe_cos.default_until_calibrated / cer.l1_slack / windows.
 runtime:
-  l1_slack: 0.05
+  l1_slack: 0.0
+  se_cer_slack: 0.05
   lambda: 0.0
   catastrophe_cos: 0.92
   se_cos_thr: 0.92
@@ -98,8 +101,11 @@ runtime:
   snr_orig_db: 5.0
   snr_sep_db: 8.0
   window_min_dur_sec: 0.8
-  window_win_sec: 0.6
-  window_hop_sec: 0.3
+  window_win_sec: 0.8
+  window_hop_sec: 0.4
+  window_min_speech_for_veto_sec: 1.2
+  reject_q_high: 0.80
+  reject_pair_cos: 0.35
   # pre-BSS skip is intentionally stricter than need_se, and stays OFF
   skip_bss_p_music_max: 0.15
   skip_bss_snr_min_db: 15.0
@@ -107,13 +113,30 @@ runtime:
 
 cmd_cosine_eval:
   role: kws_local_rank_not_contest_veto
-  metrics: [eer, auc, mean_gap]
-  groups: [raw_kws, t0, t2, skip_then_t0, skip_then_t2]
+  primary: [frr_far_at_locked_tau_by_lang, pos_p10, neg_p90, paired_delta]
+  secondary: [eer, auc, mean_gap]
+  groups: [e0_raw, e1_t0, e2_qkw, oracle_cmd]
+  split_lang: true
+  intervals: [wilson, bootstrap]
   tau_probe_not_adopt: {zh: 0.29305, en: 0.357868}
 
+bakeoff:
+  E0: raw_kws
+  E1: cer_oracle
+  E2: qkw_plus_catastrophe
+  E3: extra_separator_in_extract_sep_not_kws
+  E4: conditional_se_after_e2
+  E5: reserved
+  E6: always_se_negative_control
+  Oracle: max_cos_enroll_cmd_offline_only
+
 do_not:
-  - train a new separator
+  - train a new separator in this repo
   - use MMS-FA to pick enroll
+  - use cos(candidate, raw) as a purity / L2 rank score
+  - put heuristic p_music into official L2
   - use cos(e, e_cmd_crop) at test time
   - use SI-SDR on real KWS as a main metric
   - treat DNSMOS BAK up as speaker success
+  - treat datasetA id as speaker_id
+  - claim T2/T3 results without a real q_kw sidecar

@@ -35,30 +35,39 @@ def test_pre_bss_ignores_duration_and_defaults_off():
     assert d2.skip and d2.reason == "pre_bss_residual_clean"
 
 
-def test_l2_allows_sep_on_dual_zero_when_cos_ok():
+def test_l2_without_qkw_degrades_and_does_not_rank_by_cos():
     streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}, "spk2": {"cer": 0.4}}
-    sel = select_l1_l2(streams, cos_to_raw={"original": 1.0, "spk1": 0.96, "spk2": 0.2})
-    # original 1.0 still wins because score is higher
-    assert sel.chosen == "original" and sel.dual_zero
-    sel2 = select_l1_l2(
+    sel = select_l1_l2(streams, cos_to_raw={"original": 0.50, "spk1": 0.99, "spk2": 0.1})
+    assert sel.l2_degraded and sel.chosen == "original"
+    assert sel.reason == "l2_degraded_no_text_sidecar"
+
+
+def test_l2_ranks_by_qkw_not_cos_to_raw():
+    streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}, "spk2": {"cer": 0.4}}
+    sel = select_l1_l2(
         streams,
-        cos_to_raw={"original": 0.91, "spk1": 0.97, "spk2": 0.2},
+        q_kw={"original": 0.4, "spk1": 0.9, "spk2": 0.1},
+        cos_to_raw={"original": 0.99, "spk1": 0.95, "spk2": 0.2},
     )
-    assert sel2.chosen == "spk1" and not sel2.reverted_catastrophe
+    assert sel.chosen == "spk1" and not sel.reverted_catastrophe and not sel.l2_degraded
 
 
 def test_l2_reverts_sep_below_catastrophe():
     streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}}
     sel = select_l1_l2(
         streams,
+        q_kw={"original": 0.4, "spk1": 0.95},
         cos_to_raw={"original": 1.0, "spk1": 0.80},
         catastrophe_cos=0.90,
     )
-    # L1 eligible both; L2 would pick original anyway due to higher cos
-    assert sel.chosen == "original"
-    sel2 = select_l1_l2(
+    assert sel.chosen == "original" and sel.reverted_catastrophe
+
+
+def test_l2_rejects_two_high_text_speakers():
+    streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}, "spk2": {"cer": 0.0}}
+    sel = select_l1_l2(
         streams,
-        cos_to_raw={"original": 0.85, "spk1": 0.88},
-        catastrophe_cos=0.90,
+        q_kw={"original": 0.2, "spk1": 0.92, "spk2": 0.91},
+        pair_cos={"spk1|spk2": 0.10},
     )
-    assert sel2.chosen == "original" and sel2.reverted_catastrophe
+    assert sel.rejected and sel.chosen == "reject"

@@ -17,6 +17,7 @@ _RT = runtime()
 MIN_DUR_SEC = float(_RT["window_min_dur_sec"])
 WIN_SEC = float(_RT["window_win_sec"])
 HOP_SEC = float(_RT["window_hop_sec"])
+MIN_SPEECH_FOR_VETO_SEC = float(_RT.get("window_min_speech_for_veto_sec", 1.2))
 PERCENTILE_GRID = (5.0, 10.0, 15.0, 20.0)
 
 
@@ -80,6 +81,11 @@ def pairwise_min_cos(embs: list[np.ndarray]) -> float | None:
     g = m @ m.T
     iu = np.triu_indices(len(m), k=1)
     return float(np.min(g[iu]))
+
+
+def allow_mincos_veto(dur_sec: float, *, min_speech: float = MIN_SPEECH_FOR_VETO_SEC) -> bool:
+    """Do not use window min-cos as a reject if effective speech is too short."""
+    return float(dur_sec) + 1e-9 >= float(min_speech)
 
 
 def anomaly_by_percentile(

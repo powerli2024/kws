@@ -23,11 +23,13 @@ def pick_track(
     *,
     cos_map: dict[str, dict[str, float]],
     pm_map: dict[str, dict[str, float] | float],
+    qkw_map: dict[str, dict[str, float]] | None = None,
 ) -> dict[str, Any]:
     uid = str(rec["uid"])
     streams = rec.get("streams") or {}
     t0 = t0_stream(rec)
     dual = bool(rec.get("dual_zero"))
+    qkw_map = qkw_map or {}
     if arm in CER_ORACLE_ARMS:
         return {
             "chosen": t0,
@@ -35,29 +37,35 @@ def pick_track(
             "dual_zero": dual,
             "reverted_catastrophe": False,
             "l2_degraded": False,
+            "rejected": False,
         }
     if arm not in L2_ARMS:
         raise ValueError(arm)
-    cos = cos_map.get(uid)
-    if not cos:
-        if cos_map:
-            raise SidecarError(f"uid={uid} missing from cos sidecar")
+    qkw = qkw_map.get(uid)
+    if not qkw:
+        if qkw_map:
+            raise SidecarError(f"uid={uid} missing from q_kw sidecar")
         return {
             "chosen": t0,
-            "reason": "l2_degraded_no_cos_sidecar",
+            "reason": "l2_degraded_no_text_sidecar",
             "dual_zero": dual,
             "reverted_catastrophe": False,
             "l2_degraded": True,
+            "rejected": False,
         }
+    cos = cos_map.get(uid)
+    if cos_map and not cos:
+        raise SidecarError(f"uid={uid} missing from cos sidecar")
     pm_raw = pm_map.get(uid)
     pm_per_stream = pm_raw if isinstance(pm_raw, dict) else None
-    sel = select_l1_l2(streams, cos_to_raw=cos, p_music=pm_per_stream)
+    sel = select_l1_l2(streams, cos_to_raw=cos, q_kw=qkw, p_music=pm_per_stream)
     return {
         "chosen": sel.chosen,
         "reason": sel.reason,
         "dual_zero": sel.dual_zero,
         "reverted_catastrophe": sel.reverted_catastrophe,
-        "l2_degraded": False,
+        "l2_degraded": sel.l2_degraded,
+        "rejected": sel.rejected,
     }
 
 

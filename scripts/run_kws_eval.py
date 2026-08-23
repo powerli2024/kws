@@ -93,11 +93,10 @@ def main() -> int:
             str(pm),
             "--picks",
             str(picks),
-            "--strict-cos",
             *extra_limit,
         ]
     )
-    groups = ["raw_kws", "t0", "t2", "skip_then_t0", "skip_then_t2"]
+    groups = ["e0_raw", "e1_t0", "e2_qkw", "skip_then_t0", "skip_then_t2"]
     if args.with_se_groups:
         groups += ["t1_spectral", "t4_spectral"]
     if not args.skip_export:

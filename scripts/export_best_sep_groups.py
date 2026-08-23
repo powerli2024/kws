@@ -43,7 +43,7 @@ def main() -> int:
     rows = load_jsonl(args.picks)
     if args.limit:
         rows = limit_rows_balanced(rows, args.limit)
-    default_groups = ["raw_kws", "t0", "t2", "skip_then_t0", "skip_then_t2"]
+    default_groups = ["e0_raw", "e1_t0", "e2_qkw", "skip_then_t0", "skip_then_t2"]
     groups = args.group or default_groups
     known = {n for n, _ in GROUP_SPECS}
     for g in groups:

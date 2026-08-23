@@ -3,7 +3,7 @@ import numpy as np
 from kws.catastrophe import pick_threshold_from_clean_floor
 from kws.need_se import need_se, se_safety_ok
 from kws.presence_protocol import enroll_go
-from kws.window_mincos import pairwise_min_cos, window_starts
+from kws.window_mincos import allow_mincos_veto, pairwise_min_cos, window_starts
 
 
 def test_short_kws_skips_window_metric():
@@ -14,6 +14,11 @@ def test_short_kws_skips_window_metric():
 def test_two_windows_on_one_second():
     spec = window_starts(16000, 16000)
     assert not spec.skipped and len(spec.starts) >= 2
+
+
+def test_mincos_veto_needs_1p2s_speech():
+    assert not allow_mincos_veto(1.0)
+    assert allow_mincos_veto(1.2)
 
 
 def test_pairwise_min_cos_identical():

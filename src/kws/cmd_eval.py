@@ -10,6 +10,8 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 
+from .stats import wilson_interval
+
 LOCKED_TAU_PROBE = {"zh": 0.29305, "en": 0.357868, "default": 0.29305}
 
 
@@ -82,7 +84,76 @@ def summarize_cmd_scores(
         "auc": auc_scores(p, n),
         "eer": eer,
         "locked_tau_probe_not_adopt": probes,
+        "locked_tau_by_lang": None,
+        "intervals": {
+            "neg_n": len(n),
+            "far_pp_per_error": (100.0 / len(n)) if n else None,
+            "note": "474 neg ≈ 0.211 pp per miss; do not claim FAR < 0.2% without a CI",
+        },
         "role": "kws_local_cmd_separation_not_contest_veto",
+    }
+
+
+def rate_with_wilson(k: int, n: int) -> dict[str, float]:
+    p, lo, hi = wilson_interval(k, n)
+    return {"rate": p, "lo": lo, "hi": hi, "k": k, "n": n}
+
+
+def summarize_by_lang(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    tau_by_lang: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
+    tau_by_lang = dict(tau_by_lang or LOCKED_TAU_PROBE)
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for rec in rows:
+        lang = str(rec.get("lang") or "default")
+        if lang not in ("zh", "en"):
+            lang = "zh" if lang not in tau_by_lang else lang
+        buckets.setdefault(lang, []).append(dict(rec))
+    out: dict[str, Any] = {}
+    for lang, items in buckets.items():
+        pos, neg = collect_split_scores(items)
+        base = summarize_cmd_scores(pos, neg, tau_probe={lang: float(tau_by_lang.get(lang, tau_by_lang["default"]))})
+        thr = float(tau_by_lang.get(lang, tau_by_lang["default"]))
+        pa = np.asarray(pos, dtype=np.float64)
+        na = np.asarray(neg, dtype=np.float64)
+        frr_k = int(np.sum(pa < thr)) if pa.size else 0
+        far_k = int(np.sum(na >= thr)) if na.size else 0
+        base["locked_tau_by_lang"] = {
+            "lang": lang,
+            "threshold": thr,
+            "frr": rate_with_wilson(frr_k, len(pos)),
+            "far": rate_with_wilson(far_k, len(neg)),
+        }
+        out[lang] = base
+    return out
+
+
+def paired_deltas(
+    base_rows: Sequence[Mapping[str, Any]],
+    cand_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    b = {str(r["uid"]): r for r in base_rows if r.get("cos_enroll_cmd") is not None}
+    c = {str(r["uid"]): r for r in cand_rows if r.get("cos_enroll_cmd") is not None}
+    common = sorted(set(b) & set(c))
+    pos_up = pos_n = neg_down = neg_n = 0
+    deltas: list[float] = []
+    for uid in common:
+        d = float(c[uid]["cos_enroll_cmd"]) - float(b[uid]["cos_enroll_cmd"])
+        deltas.append(d)
+        split = str(c[uid].get("split") or b[uid].get("split") or "")
+        if split == "pos":
+            pos_n += 1
+            pos_up += int(d > 0)
+        elif split == "neg":
+            neg_n += 1
+            neg_down += int(d < 0)
+    return {
+        "n_common": len(common),
+        "pos_improved_rate": (pos_up / pos_n) if pos_n else None,
+        "neg_improved_rate": (neg_down / neg_n) if neg_n else None,
+        "delta_mean": float(np.mean(deltas)) if deltas else None,
     }
 
 
@@ -91,17 +162,22 @@ def rank_groups(
     *,
     baseline: str,
 ) -> dict[str, Any]:
-    """Rank by EER (lower), then mean_gap (higher), then AUC (higher)."""
+    """Rank by locked-τ FAR then FRR (lower), then -pos_p10, then EER. Not EER-only."""
 
-    def key(name: str) -> tuple[float, float, float]:
+    def key(name: str) -> tuple[float, float, float, float]:
         s = summaries[name]
+        probe = s.get("locked_tau_probe_not_adopt") or {}
+        zh = probe.get("tau_zh") or {}
+        far = zh.get("far")
+        frr = zh.get("frr")
+        p10 = s.get("pos_p10")
         eer = (s.get("eer") or {}).get("eer")
-        gap = s.get("mean_gap")
-        auc = s.get("auc")
-        eer_k = float(eer) if eer is not None else 2.0
-        gap_k = -float(gap) if gap is not None else 0.0
-        auc_k = -float(auc) if auc is not None else 0.0
-        return eer_k, gap_k, auc_k
+        return (
+            float(far) if far is not None else 2.0,
+            float(frr) if frr is not None else 2.0,
+            -float(p10) if p10 is not None else 0.0,
+            float(eer) if eer is not None else 2.0,
+        )
 
     names = list(summaries)
     ordered = sorted(names, key=key)

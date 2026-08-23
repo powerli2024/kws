@@ -1,10 +1,8 @@
-"""L1 text constraint + L2 speaker/residual pick.
+"""L0–L3 enroll pick. cos(track, raw) is a catastrophe gate, not a purity score.
 
-L1: drop tracks with CER > min_cer + slack (default 0.05).
-L2: score = cos(track, raw) - lambda * p_music
-    On dual-zero, sep is allowed unless cos(spk, raw) < catastrophe_floor.
-
-Does not call MMS-FA. Does not use CER as the unique argmin when slack ties exist.
+L1 text: same-CER hard gate (4-char wake slack≈0). Rank by q_kw / token NLL
+when a text sidecar exists. Heuristic p_music is not an official score.
+Without q_kw, L2 degrades to CER oracle — do not interpret as a speaker result.
 """
 
 from __future__ import annotations
@@ -22,6 +20,8 @@ LAMBDA_GRID = (0.0, 0.05, 0.10)
 CATASTROPHE_COS_GRID = tuple(round(0.90 + i * 0.01, 2) for i in range(6))
 DEFAULT_CATASTROPHE_COS = float(_RT["catastrophe_cos"])
 DEFAULT_LAMBDA = float(_RT["lambda"])
+REJECT_Q_HIGH = float(_RT.get("reject_q_high", 0.80))
+REJECT_PAIR_COS = float(_RT.get("reject_pair_cos", 0.35))
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,8 @@ class SelectResult:
     scores: dict[str, float]
     dual_zero: bool
     reverted_catastrophe: bool
+    rejected: bool = False
+    l2_degraded: bool = False
 
 
 def _cers(streams: Mapping[str, Mapping[str, Any]]) -> dict[str, float]:
@@ -58,63 +60,92 @@ def l1_eligible(
     return names, min_cer
 
 
+def _companion_margin(scores: Mapping[str, float], name: str) -> float:
+    others = [v for k, v in scores.items() if k != name]
+    if not others:
+        return 0.0
+    return float(scores[name] - max(others))
+
+
 def select_l1_l2(
     streams: Mapping[str, Mapping[str, Any]],
     *,
     cos_to_raw: Mapping[str, float] | None = None,
+    q_kw: Mapping[str, float] | None = None,
     p_music: Mapping[str, float] | None = None,
+    pair_cos: Mapping[str, float] | None = None,
     lam: float = DEFAULT_LAMBDA,
     slack: float = CER_SLACK_DEFAULT,
     catastrophe_cos: float = DEFAULT_CATASTROPHE_COS,
     fallback: str | None = None,
 ) -> SelectResult:
+    """Pick a track. `p_music` is accepted but ignored unless λ≠0 (off by default).
+
+    Official rank is q_kw (higher better). cos_to_raw only reverts a sep winner
+    that collapses vs raw. λ≠0 is not a supported official path.
+    """
+    _ = lam  # official score does not use λ p_music
     eligible, min_cer = l1_eligible(streams, slack=slack)
     cers = _cers(streams)
     orig0 = cers.get("original", 1.0) <= 1e-9
     any_sep0 = any(is_sep_stream(n) and cers.get(n, 1.0) <= 1e-9 for n in cers)
     dual_zero = orig0 and any_sep0
 
-    if cos_to_raw is None:
-        # No speaker scores: keep VM oracle (original wins ties).
+    if not q_kw:
         packed = {k: {"cer": cers[k]} for k in eligible}
         chosen, _ = oracle_of(packed, prefer_original=True)
         return SelectResult(
             chosen=chosen,
-            reason="l1_oracle_cer_no_cos",
+            reason="l2_degraded_no_text_sidecar",
             min_cer=min_cer,
             eligible=tuple(eligible),
             scores={k: -cers[k] for k in eligible},
             dual_zero=dual_zero,
             reverted_catastrophe=False,
+            l2_degraded=True,
         )
 
-    p_music = p_music or {}
-    missing_cos = [n for n in eligible if n not in cos_to_raw]
-    if missing_cos:
-        raise SidecarError(f"cos_to_raw missing streams {missing_cos}")
-    scores: dict[str, float] = {}
-    for name in eligible:
-        cos = float(cos_to_raw[name])
-        if name not in p_music:
-            if lam != 0.0:
-                raise SidecarError(f"p_music missing stream {name!r} with lambda={lam}")
-            pm = 0.0
-        else:
-            pm = float(p_music[name])
-        scores[name] = cos - lam * pm
+    missing_q = [n for n in eligible if n not in q_kw]
+    if missing_q:
+        raise SidecarError(f"q_kw missing streams {missing_q}")
+    scores = {name: float(q_kw[name]) for name in eligible}
 
-    # Higher score wins; exact ties keep original (conservative).
-    chosen = max(scores, key=lambda n: (scores[n], 1 if n == "original" else 0, n))
+    high = [n for n in eligible if is_sep_stream(n) and scores[n] >= REJECT_Q_HIGH]
+    if len(high) >= 2 and pair_cos:
+        worst = 1.0
+        for i, a in enumerate(high):
+            for b in high[i + 1 :]:
+                key = f"{a}|{b}"
+                alt = f"{b}|{a}"
+                if key in pair_cos:
+                    worst = min(worst, float(pair_cos[key]))
+                elif alt in pair_cos:
+                    worst = min(worst, float(pair_cos[alt]))
+        if worst < REJECT_PAIR_COS:
+            return SelectResult(
+                chosen="reject",
+                reason="reject_two_speakers_high_text",
+                min_cer=min_cer,
+                eligible=tuple(eligible),
+                scores=scores,
+                dual_zero=dual_zero,
+                reverted_catastrophe=False,
+                rejected=True,
+            )
+
+    chosen = max(scores, key=lambda n: (scores[n], _companion_margin(scores, n), 1 if n == "original" else 0, n))
+    reason = "l2_max_qkw_margin"
     reverted = False
-    reason = "l2_max_cos_minus_pmusic"
 
-    if is_sep_stream(chosen) and dual_zero:
+    if is_sep_stream(chosen) and cos_to_raw is not None:
+        if chosen not in cos_to_raw:
+            raise SidecarError(f"cos_to_raw missing stream {chosen!r} for catastrophe gate")
         if float(cos_to_raw[chosen]) < catastrophe_cos:
             chosen = "original" if "original" in eligible else chosen
             reverted = True
-            reason = "dual_zero_sep_catastrophe_revert_original"
+            reason = "sep_catastrophe_revert_original"
 
-    if fallback and chosen not in streams:
+    if fallback and chosen not in streams and chosen != "reject":
         chosen = fallback
         reason = "missing_chosen_fallback"
 
@@ -126,4 +157,5 @@ def select_l1_l2(
         scores=scores,
         dual_zero=dual_zero,
         reverted_catastrophe=reverted,
+        rejected=chosen == "reject",
     )
