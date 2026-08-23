@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="repeatable. default: raw_kws,t0,t2,skip_then_t0,skip_then_t2",
     )
-    p.add_argument("--se-backend", default="none", help="none | spectral (for t1/t4 groups)")
+    p.add_argument("--se-backend", default="none", help="reserved; SE groups are currently disabled")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--summary", type=Path, default=ROOT / "reports" / "best_sep_groups.json")
     return p.parse_args()
@@ -49,13 +49,11 @@ def main() -> int:
     for g in groups:
         if g not in known:
             raise SystemExit(f"unknown group {g}; known={sorted(known)}")
-    if any(g in ("t1_spectral", "t4_spectral") for g in groups) and args.se_backend in (
-        "none",
-        "off",
-        "",
-    ):
-        args.se_backend = "spectral"
-        print("[INFO] t1/t4 requested → se-backend=spectral", flush=True)
+    if any(g in ("t1_spectral", "t4_spectral") for g in groups):
+        raise SystemExit(
+            "SE groups are disabled: post-SE ASR safety validation is not implemented in kws; "
+            "do not export a copied baseline under an SE group name"
+        )
 
     summary: dict = {"groups": {}, "n": len(rows)}
     args.out_root.mkdir(parents=True, exist_ok=True)

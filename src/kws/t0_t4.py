@@ -24,12 +24,16 @@ def pick_track(
     cos_map: dict[str, dict[str, float]],
     pm_map: dict[str, dict[str, float] | float],
     qkw_map: dict[str, dict[str, float]] | None = None,
+    qkw_kind_map: dict[str, str] | None = None,
+    paircos_map: dict[str, dict[str, float]] | None = None,
 ) -> dict[str, Any]:
     uid = str(rec["uid"])
     streams = rec.get("streams") or {}
     t0 = t0_stream(rec)
     dual = bool(rec.get("dual_zero"))
     qkw_map = qkw_map or {}
+    qkw_kind_map = qkw_kind_map or {}
+    paircos_map = paircos_map or {}
     if arm in CER_ORACLE_ARMS:
         return {
             "chosen": t0,
@@ -58,7 +62,14 @@ def pick_track(
         raise SidecarError(f"uid={uid} missing from cos sidecar")
     pm_raw = pm_map.get(uid)
     pm_per_stream = pm_raw if isinstance(pm_raw, dict) else None
-    sel = select_l1_l2(streams, cos_to_raw=cos, q_kw=qkw, p_music=pm_per_stream)
+    sel = select_l1_l2(
+        streams,
+        cos_to_raw=cos,
+        q_kw=qkw,
+        q_kw_kind=qkw_kind_map.get(uid, "q_kw"),
+        p_music=pm_per_stream,
+        pair_cos=paircos_map.get(uid),
+    )
     return {
         "chosen": sel.chosen,
         "reason": sel.reason,

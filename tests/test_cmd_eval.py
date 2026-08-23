@@ -1,5 +1,7 @@
+import pytest
+
 from kws.cmd_eval import auc_scores, eer_and_threshold, rank_groups, summarize_cmd_scores
-from kws.sidecar import parse_qkw_row
+from kws.sidecar import SidecarError, parse_qkw_row, parse_qkw_row_with_kind
 from kws.stats import wilson_interval
 from kws.export_groups import chosen_stream
 from kws.iojson import limit_rows_balanced
@@ -44,6 +46,26 @@ def test_wilson_and_qkw_nll():
     assert p == 0.0 and hi > 0
     uid, payload = parse_qkw_row({"uid": "pos_0", "nll": {"original": 2.0, "spk1": 0.5}})
     assert uid == "pos_0" and payload["spk1"] > payload["original"]
+
+
+def test_qkw_kind_is_explicit_and_probability_is_bounded():
+    uid, scores, kind = parse_qkw_row_with_kind(
+        {"uid": "pos_0", "q_kw": {"original": 0.2, "spk1": 0.9}}
+    )
+    assert uid == "pos_0" and kind == "q_kw" and scores["spk1"] == 0.9
+    with pytest.raises(SidecarError, match=r"outside \[0, 1\]"):
+        parse_qkw_row({"uid": "pos_0", "q_kw": {"original": 1.1}})
+
+
+def test_rank_blocks_incomplete_coverage_and_wrong_encoder_space():
+    s = summarize_cmd_scores([0.9, 0.85], [0.1, 0.15])
+    blocked = rank_groups(
+        {"e1": {**s, "coverage_vs_baseline": 1.0}, "e2": {**s, "coverage_vs_baseline": 0.9}},
+        baseline="e1",
+    )
+    assert blocked["blocked"] == "coverage_mismatch"
+    wrong_space = rank_groups({"e1": s}, baseline="e1", locked_tau_compatible=False)
+    assert wrong_space["blocked"] == "locked_tau_requires_eres2netv2"
 
 
 def test_chosen_stream_skip_and_t2():

@@ -82,3 +82,26 @@ def test_l2_missing_stream_qkw_raises():
     streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}}
     with pytest.raises(SidecarError, match="q_kw missing streams"):
         select_l1_l2(streams, q_kw={"original": 0.9})
+
+
+def test_t2_rejects_two_distinct_high_text_sep_tracks():
+    rec = {
+        "uid": "u",
+        "oracle_stream": "original",
+        "dual_zero": True,
+        "streams": {
+            "original": {"cer": 0.0},
+            "spk1": {"cer": 0.0},
+            "spk2": {"cer": 0.0},
+        },
+    }
+    got = pick_track(
+        "T2",
+        rec,
+        cos_map={},
+        pm_map={},
+        qkw_map={"u": {"original": 0.1, "spk1": 0.95, "spk2": 0.93}},
+        paircos_map={"u": {"spk1|spk2": 0.10}},
+    )
+    assert got["chosen"] == "reject"
+    assert got["rejected"]

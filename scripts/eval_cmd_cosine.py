@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from kws.audio import cosine_sim, load_wav_mono  # noqa: E402
 from kws.best_sep_eval import resolve_wav  # noqa: E402
 from kws.cmd_eval import collect_split_scores, rank_groups, summarize_cmd_scores  # noqa: E402
+from kws.cmd_eval import aggregate_lang_thresholds, paired_deltas, summarize_by_lang  # noqa: E402
 from kws.eres import load_embedder  # noqa: E402
 from kws.iojson import limit_rows_balanced, load_jsonl, write_json, write_jsonl  # noqa: E402
 from kws.wav_paths import (  # noqa: E402
@@ -83,6 +84,16 @@ def _index_rows(best_sep: Path) -> list[dict]:
     return rows
 
 
+def _increment(counts: dict[str, int], key: str) -> None:
+    counts[key] = counts.get(key, 0) + 1
+
+
+def _locked_tau_compatible(backend: str, encoder_name: str) -> bool:
+    """Frozen thresholds are tied to the ERes2NetV2 scoring space."""
+    normalized = (backend or "").lower().strip()
+    return normalized in {"eres2netv2", "eres2net", "eres"} and "eres2netv2" in encoder_name.lower()
+
+
 def main() -> int:
     args = parse_args()
     dirs = _parse_dirs(args.dir)
@@ -100,7 +111,8 @@ def main() -> int:
 
     cmd_cache: dict[str, object] = {}
     all_scores: list[dict] = []
-    summaries: dict[str, dict] = {}
+    group_rows: dict[str, list[dict]] = {}
+    group_meta: dict[str, dict] = {}
 
     for name, path in dirs:
         rows = _index_rows(path)
@@ -108,8 +120,14 @@ def main() -> int:
             rows = limit_rows_balanced(rows, args.limit)
         scored = []
         n_miss = 0
+        n_rejected = 0
+        rejected_by_split: dict[str, int] = {}
+        missing_by_split: dict[str, int] = {}
         for rec in rows:
             if rec.get("ok") is False:
+                if rec.get("error") == "rejected_enroll":
+                    n_rejected += 1
+                    _increment(rejected_by_split, str(rec.get("split") or "unknown"))
                 continue
             uid = str(rec.get("uid") or "")
             split = str(rec.get("split") or "")
@@ -121,6 +139,7 @@ def main() -> int:
             cmd = resolve_cmd_wav(args.data_dir, rec, dataset_row=drow)
             if enroll is None or cmd is None:
                 n_miss += 1
+                _increment(missing_by_split, split or "unknown")
                 continue
             ew, esr = load_wav_mono(enroll)
             e_enroll = enc.embed(ew, esr)
@@ -145,26 +164,82 @@ def main() -> int:
             }
             scored.append(row)
             all_scores.append(row)
-        pos, neg = collect_split_scores(scored)
-        summaries[name] = {
-            **summarize_cmd_scores(pos, neg),
+        group_rows[name] = scored
+        group_meta[name] = {
             "path": str(path.resolve()),
-            "n_scored": len(scored),
             "n_missing": n_miss,
-            "encoder": enc.name,
+            "n_index": len(rows),
+            "n_rejected": n_rejected,
+            "rejected_by_split": rejected_by_split,
+            "missing_by_split": missing_by_split,
         }
         print(
-            f"[INFO] {name} n={len(scored)} miss={n_miss} "
+            f"[INFO] {name} raw_scored={len(scored)} reject={n_rejected} missing={n_miss}",
+            flush=True,
+        )
+    if baseline not in group_rows:
+        raise SystemExit(f"baseline {baseline!r} was not scored")
+
+    baseline_uids = {str(row["uid"]) for row in group_rows[baseline]}
+    if not baseline_uids:
+        raise SystemExit(f"baseline {baseline!r} has no scored UIDs")
+    common_uids = set(baseline_uids)
+    for rows in group_rows.values():
+        common_uids &= {str(row["uid"]) for row in rows}
+
+    summaries: dict[str, dict] = {}
+    comparable_rows: dict[str, list[dict]] = {}
+    for name, rows in group_rows.items():
+        scored_uids = {str(row["uid"]) for row in rows}
+        comparable = [row for row in rows if str(row["uid"]) in common_uids]
+        comparable_rows[name] = comparable
+        pos, neg = collect_split_scores(comparable)
+        by_lang = summarize_by_lang(comparable)
+        coverage_vs_baseline = len(scored_uids & baseline_uids) / len(baseline_uids)
+        summaries[name] = {
+            **summarize_cmd_scores(pos, neg),
+            **group_meta[name],
+            "encoder": enc.name,
+            "n_scored_raw": len(rows),
+            "n_scored_common": len(comparable),
+            "n_baseline_scored": len(baseline_uids),
+            "n_common": len(common_uids),
+            "coverage_vs_baseline": coverage_vs_baseline,
+            "coverage_complete": scored_uids == baseline_uids,
+            "by_lang": by_lang,
+            "locked_tau_by_lang_aggregate": aggregate_lang_thresholds(by_lang),
+        }
+        print(
+            f"[INFO] {name} common={len(comparable)}/{len(baseline_uids)} "
             f"gap={summaries[name].get('mean_gap')} eer={summaries[name].get('eer')}",
             flush=True,
         )
+    paired_vs_baseline = {
+        name: paired_deltas(comparable_rows[baseline], rows)
+        for name, rows in comparable_rows.items()
+        if name != baseline
+    }
 
-    ranking = rank_groups(summaries, baseline=baseline)
+    locked_tau_compatible = _locked_tau_compatible(args.backend, enc.name)
+    ranking = rank_groups(
+        summaries,
+        baseline=baseline,
+        locked_tau_compatible=locked_tau_compatible,
+        require_full_coverage=True,
+    )
     payload = {
         "baseline": baseline,
         "encoder": enc.name,
+        "locked_tau_compatible": locked_tau_compatible,
+        "comparison": {
+            "basis": "common_scored_uid_intersection",
+            "n_baseline_scored": len(baseline_uids),
+            "n_common": len(common_uids),
+            "coverage_required_for_rank": True,
+        },
         "summaries": summaries,
         "rank": ranking,
+        "paired_vs_baseline": paired_vs_baseline,
         "protocol": "docs/BEST_SEP_EVAL.md",
         "note": ranking["note"],
     }
@@ -186,8 +261,8 @@ def _md(payload: dict) -> str:
         "",
         f"encoder: `{payload.get('encoder')}`",
         "",
-        "| group | n_pos | n_neg | pos_mean | neg_mean | gap | AUC | EER | EER-thr |",
-        "|-------|-------|-------|----------|----------|-----|-----|-----|---------|",
+        "| group | common / baseline | rejected | missing | pos_mean | neg_mean | gap | AUC | EER |",
+        "|-------|-------------------|----------|---------|----------|----------|-----|-----|-----|",
     ]
 
     def f(x, nd=4):
@@ -196,13 +271,17 @@ def _md(payload: dict) -> str:
     for name, s in payload["summaries"].items():
         eer = s.get("eer") or {}
         lines.append(
-            f"| {name} | {s.get('n_pos')} | {s.get('n_neg')} | {f(s.get('pos_mean'))} | "
+            f"| {name} | {s.get('n_scored_common')} / {s.get('n_baseline_scored')} | "
+            f"{s.get('n_rejected')} | {s.get('n_missing')} | {f(s.get('pos_mean'))} | "
             f"{f(s.get('neg_mean'))} | {f(s.get('mean_gap'))} | {f(s.get('auc'))} | "
-            f"{f(eer.get('eer'))} | {f(eer.get('threshold'))} |"
+            f"{f(eer.get('eer'))} |"
         )
     rank = payload.get("rank") or {}
     lines += ["", f"**Rank:** {' > '.join(rank.get('order') or [])}", ""]
-    lines.append("Locked VE τ is a probe only (`locked_tau_probe_not_adopt`); do not adopt from it.")
+    lines.append(
+        "Rank is blocked on incomplete coverage and on non-ERes2NetV2 backends. "
+        "Frozen VE τ is a probe only; do not adopt from it."
+    )
     return "\n".join(lines) + "\n"
 
 

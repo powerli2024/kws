@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -10,6 +11,7 @@ from .iojson import load_jsonl
 COS_PAYLOAD_KEYS = ("cos_to_raw", "scores", "cos")
 PM_PAYLOAD_KEYS = ("p_music", "pmusic")
 QKW_PAYLOAD_KEYS = ("q_kw", "nll")
+PAIR_COS_KEY = "pair_cos"
 
 
 class SidecarError(ValueError):
@@ -102,8 +104,10 @@ def parse_pmusic_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, di
     raise SidecarError(f"uid={uid}: p_music must be a float or dict of stream→float")
 
 
-def parse_qkw_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, dict[str, float]]:
-    """Higher is better. `q_kw` is used as-is; `nll` is negated."""
+def parse_qkw_row_with_kind(
+    row: Mapping[str, Any], *, index: int = 0
+) -> tuple[str, dict[str, float], str]:
+    """Higher is better; return the original score convention as well."""
     uid = _require_uid(row, index=index)
     key, payload = _exactly_one_payload(row, QKW_PAYLOAD_KEYS, uid=uid)
     if not isinstance(payload, dict):
@@ -114,10 +118,20 @@ def parse_qkw_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, dict[
             x = float(raw)
         except (TypeError, ValueError) as e:
             raise SidecarError(f"uid={uid}: {key}[{name!r}]={raw!r} is not a float") from e
+        if not math.isfinite(x):
+            raise SidecarError(f"uid={uid}: {key}[{name!r}]={x} is not finite")
+        if key == "q_kw" and not 0.0 <= x <= 1.0:
+            raise SidecarError(f"uid={uid}: q_kw[{name!r}]={x} outside [0, 1]")
         out[str(name)] = -x if key == "nll" else x
     if not out:
         raise SidecarError(f"uid={uid}: {key} is empty after parse")
-    return uid, out
+    return uid, out, key
+
+
+def parse_qkw_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, dict[str, float]]:
+    """Compatibility wrapper; higher score is better."""
+    uid, payload, _ = parse_qkw_row_with_kind(row, index=index)
+    return uid, payload
 
 
 def load_qkw_sidecar(path: Path) -> dict[str, dict[str, float]]:
@@ -128,6 +142,19 @@ def load_qkw_sidecar(path: Path) -> dict[str, dict[str, float]]:
             raise SidecarError(f"duplicate uid={uid} in {path}")
         out[uid] = payload
     return out
+
+
+def load_qkw_sidecar_with_kind(path: Path) -> tuple[dict[str, dict[str, float]], dict[str, str]]:
+    """Load scores plus their per-uid convention (``q_kw`` or ``nll``)."""
+    scores: dict[str, dict[str, float]] = {}
+    kinds: dict[str, str] = {}
+    for i, row in enumerate(load_jsonl(path)):
+        uid, payload, kind = parse_qkw_row_with_kind(row, index=i)
+        if uid in scores:
+            raise SidecarError(f"duplicate uid={uid} in {path}")
+        scores[uid] = payload
+        kinds[uid] = kind
+    return scores, kinds
 
 
 def load_cos_sidecar(path: Path) -> dict[str, dict[str, float]]:
@@ -162,3 +189,35 @@ def clip_p_music(value: dict[str, float] | float | None, stream: str | None) -> 
             raise SidecarError(f"p_music dict has no entry for stream={stream!r}")
         return float(value[stream])
     raise SidecarError(f"bad p_music type {type(value)}")
+
+
+def parse_paircos_row(row: Mapping[str, Any], *, index: int = 0) -> tuple[str, dict[str, float]]:
+    """Parse pairwise stream cosine keyed as ``stream_a|stream_b``."""
+    uid = _require_uid(row, index=index)
+    payload = row.get(PAIR_COS_KEY)
+    if not isinstance(payload, dict) or not payload:
+        raise SidecarError(f"uid={uid}: {PAIR_COS_KEY} must be a non-empty dict")
+    out: dict[str, float] = {}
+    for key, raw in payload.items():
+        name = str(key)
+        left, sep, right = name.partition("|")
+        if not sep or not left or not right or left == right or name.count("|") != 1:
+            raise SidecarError(f"uid={uid}: pair_cos key {name!r} must be 'stream_a|stream_b'")
+        try:
+            value = float(raw)
+        except (TypeError, ValueError) as e:
+            raise SidecarError(f"uid={uid}: pair_cos[{name!r}]={raw!r} is not a float") from e
+        if not math.isfinite(value) or not -1.000001 <= value <= 1.000001:
+            raise SidecarError(f"uid={uid}: pair_cos[{name!r}]={value} outside [-1, 1]")
+        out[name] = value
+    return uid, out
+
+
+def load_paircos_sidecar(path: Path) -> dict[str, dict[str, float]]:
+    out: dict[str, dict[str, float]] = {}
+    for i, row in enumerate(load_jsonl(path)):
+        uid, payload = parse_paircos_row(row, index=i)
+        if uid in out:
+            raise SidecarError(f"duplicate uid={uid} in {path}")
+        out[uid] = payload
+    return out

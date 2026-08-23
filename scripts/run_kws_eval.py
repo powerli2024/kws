@@ -20,10 +20,22 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--data-dir", type=Path, default=Path(r"d:\media\datasetA"))
     p.add_argument("--backend", default="eres2netv2")
     p.add_argument("--device", default=None)
+    p.add_argument("--qkw-jsonl", type=Path, default=None, help="real T2 q_kw/nll sidecar")
+    p.add_argument("--paircos-jsonl", type=Path, default=None, help="optional pairwise ERes cosine sidecar")
+    p.add_argument("--require-e2", action="store_true", help="fail unless a real q_kw sidecar is supplied")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--skip-sidecar", action="store_true")
     p.add_argument("--skip-export", action="store_true")
-    p.add_argument("--with-se-groups", action="store_true", help="also export t1_spectral and t4_spectral")
+    p.add_argument(
+        "--with-se-groups",
+        action="store_true",
+        help="disabled until post-SE ASR validation is wired",
+    )
+    p.add_argument(
+        "--reuse-enriched",
+        action="store_true",
+        help="reuse reports/best_sep_enriched.jsonl only when it was built for this exact pos_neg tree",
+    )
     p.add_argument(
         "--out-root",
         type=Path,
@@ -43,7 +55,12 @@ def main() -> int:
     args = parse_args()
     py = sys.executable
     enriched = ROOT / "reports" / "best_sep_enriched.jsonl"
-    if not enriched.is_file():
+    if args.with_se_groups:
+        raise SystemExit(
+            "--with-se-groups is disabled: this repository has no post-SE ASR safety score, "
+            "so exporting an SE-labelled copy would not be a valid experiment"
+        )
+    if not args.reuse_enriched or not enriched.is_file():
         run(
             [
                 py,
@@ -55,6 +72,7 @@ def main() -> int:
         )
     cos = ROOT / "reports" / "sidecars" / "cos_to_raw.jsonl"
     pm = ROOT / "reports" / "sidecars" / "p_music.jsonl"
+    paircos = ROOT / "reports" / "sidecars" / "pair_cos.jsonl"
     extra_limit = ["--limit", str(args.limit)] if args.limit else []
     if not args.skip_sidecar:
         cmd = [
@@ -72,6 +90,8 @@ def main() -> int:
             str(cos),
             "--out-pmusic",
             str(pm),
+            "--out-paircos",
+            str(paircos),
             *extra_limit,
         ]
         if args.device:
@@ -80,25 +100,38 @@ def main() -> int:
     if not cos.is_file():
         raise SystemExit(f"missing sidecar {cos}; run without --skip-sidecar")
 
+    if args.require_e2 and args.qkw_jsonl is None:
+        raise SystemExit("--require-e2 needs --qkw-jsonl from frozen forced decode")
+    if args.qkw_jsonl is not None and not args.qkw_jsonl.is_file():
+        raise SystemExit(f"q_kw sidecar not found: {args.qkw_jsonl}")
+    if args.paircos_jsonl is not None and not args.paircos_jsonl.is_file():
+        raise SystemExit(f"pair_cos sidecar not found: {args.paircos_jsonl}")
     picks = ROOT / "reports" / "t0_t4_picks.jsonl"
-    run(
-        [
-            py,
-            "scripts/run_t0_t4.py",
-            "--enriched",
-            str(enriched),
-            "--cos-jsonl",
-            str(cos),
-            "--pmusic-jsonl",
-            str(pm),
-            "--picks",
-            str(picks),
-            *extra_limit,
-        ]
-    )
-    groups = ["e0_raw", "e1_t0", "e2_qkw", "skip_then_t0", "skip_then_t2"]
-    if args.with_se_groups:
-        groups += ["t1_spectral", "t4_spectral"]
+    pick_cmd = [
+        py,
+        "scripts/run_t0_t4.py",
+        "--enriched",
+        str(enriched),
+        "--cos-jsonl",
+        str(cos),
+        "--pmusic-jsonl",
+        str(pm),
+        "--picks",
+        str(picks),
+        *extra_limit,
+    ]
+    if args.qkw_jsonl is not None:
+        pick_cmd += ["--qkw-jsonl", str(args.qkw_jsonl), "--strict-text"]
+        pair_arg = args.paircos_jsonl or paircos
+        if pair_arg.is_file():
+            pick_cmd += ["--paircos-jsonl", str(pair_arg)]
+        groups = ["e0_raw", "e1_t0", "e2_qkw", "skip_then_t0", "skip_then_t2"]
+    else:
+        # Do not silently publish a degraded E2 result. This mode is E0/E1 only.
+        pick_cmd += ["--arm", "T0"]
+        groups = ["e0_raw", "e1_t0", "skip_then_t0"]
+        print("[WARN] no --qkw-jsonl: running E0/E1 only; E2 is intentionally omitted.", flush=True)
+    run(pick_cmd)
     if not args.skip_export:
         cmd = [
             py,
@@ -127,7 +160,7 @@ def main() -> int:
         "--backend",
         args.backend,
         "--baseline",
-        "t0",
+        "e1_t0",
         *extra_limit,
     ]
     if args.device:

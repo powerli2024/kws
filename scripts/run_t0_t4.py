@@ -21,7 +21,8 @@ from kws.sidecar import (  # noqa: E402
     clip_p_music,
     load_cos_sidecar,
     load_pmusic_sidecar,
-    load_qkw_sidecar,
+    load_qkw_sidecar_with_kind,
+    load_paircos_sidecar,
 )
 from kws.t0_t4 import pick_track, t0_stream, apply_se_placeholder  # noqa: E402
 
@@ -38,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--cos-jsonl", type=Path, default=None, help="catastrophe gate only: uid + cos_to_raw|scores|cos")
     p.add_argument("--qkw-jsonl", type=Path, default=None, help="T2 rank: uid + q_kw or nll dict")
     p.add_argument("--pmusic-jsonl", type=Path, default=None, help="diagnostic only unless λ≠0")
+    p.add_argument("--paircos-jsonl", type=Path, default=None, help="reject gate: uid + pair_cos dict")
     p.add_argument("--out", type=Path, default=ROOT / "reports" / "t0_t4.json")
     p.add_argument(
         "--picks",
@@ -84,11 +86,21 @@ def main() -> None:
     if args.qkw_jsonl is not None:
         if not args.qkw_jsonl.is_file():
             raise SidecarError(f"q_kw sidecar not found: {args.qkw_jsonl}")
-        qkw_map = load_qkw_sidecar(args.qkw_jsonl)
+        qkw_map, qkw_kind_map = load_qkw_sidecar_with_kind(args.qkw_jsonl)
         if not qkw_map:
             raise SidecarError(f"q_kw sidecar is empty: {args.qkw_jsonl}")
     else:
         qkw_map = {}
+        qkw_kind_map = {}
+
+    if args.paircos_jsonl is not None:
+        if not args.paircos_jsonl.is_file():
+            raise SidecarError(f"pair_cos sidecar not found: {args.paircos_jsonl}")
+        paircos_map = load_paircos_sidecar(args.paircos_jsonl)
+        if not paircos_map:
+            raise SidecarError(f"pair_cos sidecar is empty: {args.paircos_jsonl}")
+    else:
+        paircos_map = {}
 
     arms = (args.arm,) if args.arm else ARMS
     if (args.strict_text or args.strict_cos) and any(a in L2_ARMS for a in arms) and not qkw_map:
@@ -109,7 +121,11 @@ def main() -> None:
             if not streams:
                 continue
             uid = str(rec["uid"])
-            picked = pick_track(arm, rec, cos_map=cos_map, pm_map=pm_map, qkw_map=qkw_map)
+            picked = pick_track(
+                arm, rec, cos_map=cos_map, pm_map=pm_map, qkw_map=qkw_map,
+                qkw_kind_map=qkw_kind_map,
+                paircos_map=paircos_map,
+            )
             t0 = t0_stream(rec)
             chosen = picked["chosen"]
             pm_clip = None
@@ -184,6 +200,7 @@ def main() -> None:
             "n_l2_degraded_no_cos": n_degraded,
             "cos_sidecar_loaded": bool(cos_map),
             "qkw_sidecar_loaded": bool(qkw_map),
+            "qkw_score_kinds": sorted(set(qkw_kind_map.values())),
             "examples": examples,
             "answers": {
                 "T0": "current CER oracle enroll",

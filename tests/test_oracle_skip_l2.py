@@ -71,3 +71,14 @@ def test_l2_rejects_two_high_text_speakers():
         pair_cos={"spk1|spk2": 0.10},
     )
     assert sel.rejected and sel.chosen == "reject"
+
+
+def test_l2_nll_can_rank_but_cannot_use_absolute_reject_threshold():
+    streams = {"original": {"cer": 0.0}, "spk1": {"cer": 0.0}, "spk2": {"cer": 0.0}}
+    sel = select_l1_l2(
+        streams,
+        q_kw={"original": -3.0, "spk1": -0.1, "spk2": -0.2},
+        q_kw_kind="nll",
+        pair_cos={"spk1|spk2": 0.10},
+    )
+    assert not sel.rejected and sel.chosen == "spk1"

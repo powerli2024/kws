@@ -36,6 +36,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--data-dir", type=Path, default=Path(r"d:\media\datasetA"))
     p.add_argument("--out-cos", type=Path, default=ROOT / "reports" / "sidecars" / "cos_to_raw.jsonl")
     p.add_argument("--out-pmusic", type=Path, default=ROOT / "reports" / "sidecars" / "p_music.jsonl")
+    p.add_argument(
+        "--out-paircos",
+        type=Path,
+        default=ROOT / "reports" / "sidecars" / "pair_cos.jsonl",
+        help="pairwise ERes cosine for reject-enroll checks",
+    )
     p.add_argument("--out-meta", type=Path, default=ROOT / "reports" / "sidecars" / "build_meta.json")
     p.add_argument("--backend", default="eres2netv2", help="eres2netv2 | campplus | fft")
     p.add_argument("--model-dir", type=Path, default=None)
@@ -62,6 +68,7 @@ def main() -> int:
 
     cos_rows: list[dict] = []
     pm_rows: list[dict] = []
+    pair_rows: list[dict] = []
     n_miss_kws = n_miss_stream = n_ok = 0
     missing: list[dict] = []
 
@@ -83,6 +90,7 @@ def main() -> int:
         e_raw = enc.embed(kws, sr)
         cos: dict[str, float] = {}
         pm: dict[str, float] = {}
+        embs: dict[str, object] = {}
         snrs: dict[str, float] = {}
         row_miss = False
         for name in streams:
@@ -106,6 +114,7 @@ def main() -> int:
                 continue
             wav, ssr = load_wav_mono(sp)
             emb = enc.embed(wav, ssr)
+            embs[name] = emb
             c = float(cosine_sim(emb, e_raw))
             cos[name] = max(-1.0, min(1.0, c))
             pm[name] = float(p_music_heuristic(wav, ssr))
@@ -116,12 +125,23 @@ def main() -> int:
             continue
         cos_rows.append({"uid": uid, "cos_to_raw": cos})
         pm_rows.append({"uid": uid, "p_music": pm, "snr_med_db": snrs})
+        pairs: dict[str, float] = {}
+        names = sorted(embs)
+        for left_i, left in enumerate(names):
+            for right in names[left_i + 1 :]:
+                pairs[f"{left}|{right}"] = max(
+                    -1.0, min(1.0, float(cosine_sim(embs[left], embs[right])))
+                )
+        if pairs:
+            pair_rows.append({"uid": uid, "pair_cos": pairs})
+
         n_ok += 1
         if (i + 1) % 25 == 0 or i + 1 == len(rows):
             print(f"[INFO] {i + 1}/{len(rows)} ok={n_ok}", flush=True)
 
     write_jsonl(args.out_cos, cos_rows)
     write_jsonl(args.out_pmusic, [{"uid": r["uid"], "p_music": r["p_music"]} for r in pm_rows])
+    write_jsonl(args.out_paircos, pair_rows)
     write_json(
         args.out_meta,
         {
@@ -133,6 +153,7 @@ def main() -> int:
             "n_missing_stream": n_miss_stream,
             "out_cos": str(args.out_cos),
             "out_pmusic": str(args.out_pmusic),
+            "out_paircos": str(args.out_paircos),
             "note": (
                 "cos_to_raw is catastrophe vs raw KWS, not a purity score. "
                 "p_music is residual.p_music_heuristic until YAMNet is calibrated."
@@ -148,6 +169,7 @@ def main() -> int:
     )
     print(f"[OK] {args.out_cos}")
     print(f"[OK] {args.out_pmusic}")
+    print(f"[OK] {args.out_paircos}")
     return 0
 
 

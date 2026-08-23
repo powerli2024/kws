@@ -49,21 +49,34 @@ python -m pytest -q
 python scripts/review_checklist.py
 python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --allow-legacy
 
-# Full KWS-local eval (sidecar → picks → multi best_sep → CMD cosine rank)
+# Full E2 eval. q_kw must be a calibrated [0,1] known-wake confidence sidecar.
+# NLL may rank tracks, but cannot activate the absolute-confidence reject gate.
 python scripts/run_kws_eval.py --backend eres2netv2 \
-  --data-dir d:\media\datasetA --pos-neg d:\media\pos_neg
+  --data-dir d:\media\datasetA --pos-neg d:\media\pos_neg \
+  --qkw-jsonl d:\media\q_kw_forced_decode.jsonl --require-e2
 
-# Plumbing without modelscope:
+# Plumbing only: FFT does not produce a frozen-threshold rank.
 python scripts/run_kws_eval.py --backend fft --limit 20
 ```
 
 GPU BSS (required before claiming a **new** enroll dump): clone extract **`sep`**, then
 `bash scripts/rerun_sep.sh`. Do not use extract `main` `./ve.sh` for BSS.
 
-T2 sidecar: `scripts/build_eres_sidecar.py` writes
+`run_kws_eval.py` rebuilds `reports/best_sep_enriched.jsonl` by default, so an
+AutoDL BSS rerun cannot silently reuse the report committed with this repo.
+Use `--reuse-enriched` only when the `pos_neg` tree is known identical.
+
+T2 text sidecar: pass `--qkw-jsonl` with exactly one of `q_kw` (calibrated
+`[0,1]` confidence) or `nll` per UID. `nll` is negated for ranking only;
+the two-high-text reject gate requires calibrated `q_kw`.
+
+ERes sidecar: `scripts/build_eres_sidecar.py` writes
 `{"uid": "...", "cos_to_raw": {"original": ..., "spk1": ..., "spk2": ...}}`.
 Empty dicts and whole-row fallback are rejected. If the file is passed, every
-uid must be present. `--strict-cos` hard-fails when it is missing.
+uid must be present. `--strict-text` hard-fails when it is missing.
+
+SE-labelled groups are intentionally disabled until a frozen post-SE ASR safety
+score is wired. The repository will not export a copied baseline as an SE result.
 
 ## Rank vs later veto
 

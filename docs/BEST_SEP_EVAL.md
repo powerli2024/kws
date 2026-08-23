@@ -13,7 +13,10 @@ Ranking by CER just restates the tie-break.
 
 This branch **does not** run the mix Presence gate. It **writes several `best_sep` trees** and ranks them with CMD cosine.
 
-Selector contract (v3): `cos(track, raw)` is **catastrophe only**. T2 ranks by `q_kw` (known-wake continuous confidence). See `docs/SELECTOR.md`. Without `--qkw-jsonl`, T2 degrades to T0 and is **not** a speaker experiment.
+Selector contract (v3): `cos(track, raw)` is **catastrophe only**. T2 ranks by
+calibrated `q_kw` (known-wake continuous confidence). Without `--qkw-jsonl`,
+the pipeline exports E0/E1 only and intentionally omits E2. Raw NLL is allowed
+for ranking after negation, but cannot drive an absolute-confidence reject gate.
 
 ## Why the ERes sidecar was empty
 
@@ -34,11 +37,12 @@ python scripts/build_eres_sidecar.py \
   --data-dir d:\media\datasetA --pos-neg d:\media\pos_neg \
   --backend eres2netv2
 
-# 2) T0–T4 picks (T2 needs the sidecar)
+# 2) T0–T4 picks (E2 needs a calibrated q_kw sidecar)
 python scripts/run_t0_t4.py \
   --cos-jsonl reports/sidecars/cos_to_raw.jsonl \
   --pmusic-jsonl reports/sidecars/p_music.jsonl \
-  --strict-cos
+  --qkw-jsonl d:\media\q_kw_forced_decode.jsonl \
+  --strict-text
 
 # 3) materialize groups
 python scripts/export_best_sep_groups.py \
@@ -51,8 +55,9 @@ python scripts/eval_cmd_cosine.py \
   --dir raw_kws=d:\media\pos_neg\best_sep_groups\raw_kws \
   --baseline t0 --data-dir d:\media\datasetA
 
-# or the whole local pipeline:
-python scripts/run_kws_eval.py --backend eres2netv2
+# or the whole local pipeline (rebuilds enriched metadata by default):
+python scripts/run_kws_eval.py --backend eres2netv2 \
+  --qkw-jsonl d:\media\q_kw_forced_decode.jsonl --require-e2
 python scripts/run_kws_eval.py --backend fft --limit 20   # plumbing smoke
 ```
 
@@ -65,7 +70,7 @@ Groups written under `--out-root`:
 | `e2_qkw` / `t2` | same-CER + `q_kw`; `cos(track, raw)` catastrophe gate only |
 | `skip_then_t0` | orig-unique-zero → original; else T0 |
 | `skip_then_t2` | orig-unique-zero → original; else T2 |
-| `t1_spectral` / `t4_spectral` | optional; `--with-se-groups` (spectral SE, not neural) |
+| `t1_spectral` / `t4_spectral` | disabled until frozen post-SE ASR validation is available |
 
 ## CMD cosine metrics
 
@@ -74,9 +79,14 @@ For each group, each uid: `score = cos(ERes(enroll), ERes(cmd))`.
 - pos scores should be **higher** (same-session speaker)
 - neg scores should be **lower** (reject)
 - report **mean_gap**, **AUC**, **EER** (+ threshold)
-- locked VE τ (zh 0.29305 / en 0.357868) is a **probe** (`locked_tau_probe_not_adopt`), not an adopt rule
+- locked VE τ (zh 0.29305 / en 0.357868) is reported only with ERes2NetV2;
+  another encoder has a different score space and cannot receive a rank
 
-Primary rank: locked-τ FAR then FRR **by language**, then pos P10 / neg P90, with Wilson intervals. EER/AUC are secondary. 474 neg ≈ 0.211 pp per error. CER mean ≤ 0.03 is still a constraint.
+Primary rank: locked-τ FAR then FRR **by language**, then pos P10 / neg P90,
+with Wilson intervals. Every group is scored on the common UID intersection;
+any group that lacks a baseline-scored UID is coverage-blocked rather than
+allowed to win by dropping hard cases. EER/AUC are secondary. 474 neg ≈ 0.211
+pp per error. CER mean ≤ 0.03 is still a constraint.
 
 ## Later (not this branch)
 

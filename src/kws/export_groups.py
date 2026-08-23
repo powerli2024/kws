@@ -132,7 +132,8 @@ def export_one(
 
             y = apply_se(wav, sr, backend=se_backend)["wav"]
             cos = float(cosine_sim(encoder.embed(y, sr), encoder.embed(wav, sr)))
-            ok, why = se_safety_ok(cos_se_pre=cos, cer_se=0.0, cer_pre=0.0)
+            # No post-SE ASR score is available in this repository: fail closed.
+            ok, why = se_safety_ok(cos_se_pre=cos, cer_se=float("inf"), cer_pre=0.0)
             if not ok:
                 shutil.copy2(src, dest)
                 out["se_applied"] = False

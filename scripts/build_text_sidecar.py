@@ -7,6 +7,9 @@ Do not invent q_kw from CER (4-char CER is too discrete).
 Until a forced-decode dump exists, pass an already-scored jsonl with
   {"uid": "...", "q_kw": {"original": 0.9, "spk1": 0.2, "spk2": 0.1}}
 or {"uid": "...", "nll": {...}} (lower NLL is better; the loader negates it).
+
+`q_kw` is a calibrated confidence in [0, 1]. `nll` is valid for ranking, but
+does not activate the absolute-confidence two-speaker reject gate.
 """
 
 from __future__ import annotations

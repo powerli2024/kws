@@ -72,6 +72,7 @@ def select_l1_l2(
     *,
     cos_to_raw: Mapping[str, float] | None = None,
     q_kw: Mapping[str, float] | None = None,
+    q_kw_kind: str = "q_kw",
     p_music: Mapping[str, float] | None = None,
     pair_cos: Mapping[str, float] | None = None,
     lam: float = DEFAULT_LAMBDA,
@@ -110,7 +111,14 @@ def select_l1_l2(
         raise SidecarError(f"q_kw missing streams {missing_q}")
     scores = {name: float(q_kw[name]) for name in eligible}
 
-    high = [n for n in eligible if is_sep_stream(n) and scores[n] >= REJECT_Q_HIGH]
+    # The absolute high-confidence threshold is meaningful only for calibrated
+    # q_kw in [0, 1]. Raw NLL is usable for ranking after negation, not for this
+    # registration-reject gate.
+    high = (
+        [n for n in eligible if is_sep_stream(n) and scores[n] >= REJECT_Q_HIGH]
+        if q_kw_kind == "q_kw"
+        else []
+    )
     if len(high) >= 2 and pair_cos:
         worst = 1.0
         for i, a in enumerate(high):

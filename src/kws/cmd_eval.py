@@ -129,6 +129,23 @@ def summarize_by_lang(
         out[lang] = base
     return out
 
+def aggregate_lang_thresholds(by_lang: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """Pool counts evaluated at their own locked language thresholds."""
+    frr_k = frr_n = far_k = far_n = 0
+    for summary in by_lang.values():
+        locked = summary.get("locked_tau_by_lang") or {}
+        frr = locked.get("frr") or {}
+        far = locked.get("far") or {}
+        frr_k += int(frr.get("k") or 0)
+        frr_n += int(frr.get("n") or 0)
+        far_k += int(far.get("k") or 0)
+        far_n += int(far.get("n") or 0)
+    return {
+        "frr": rate_with_wilson(frr_k, frr_n) if frr_n else None,
+        "far": rate_with_wilson(far_k, far_n) if far_n else None,
+    }
+
+
 
 def paired_deltas(
     base_rows: Sequence[Mapping[str, Any]],
@@ -161,8 +178,41 @@ def rank_groups(
     summaries: Mapping[str, Mapping[str, Any]],
     *,
     baseline: str,
+    locked_tau_compatible: bool = True,
+    require_full_coverage: bool = True,
 ) -> dict[str, Any]:
     """Rank by locked-τ FAR then FRR (lower), then -pos_p10, then EER. Not EER-only."""
+
+    if not locked_tau_compatible:
+        return {
+            "baseline": baseline,
+            "order": [],
+            "best": None,
+            "beats_baseline": False,
+            "blocked": "locked_tau_requires_eres2netv2",
+            "note": "No ranked winner: frozen τ is valid only for the ERes2NetV2 backend.",
+        }
+    if require_full_coverage:
+        incomplete = [
+            name
+            for name, summary in summaries.items()
+            if summary.get("coverage_complete") is False
+            or (
+                summary.get("coverage_complete") is None
+                and summary.get("coverage_vs_baseline") is not None
+                and float(summary["coverage_vs_baseline"]) < 1.0 - 1e-12
+            )
+        ]
+        if incomplete:
+            return {
+                "baseline": baseline,
+                "order": [],
+                "best": None,
+                "beats_baseline": False,
+                "blocked": "coverage_mismatch",
+                "incomplete_groups": incomplete,
+                "note": "No ranked winner: one or more groups lack baseline-scored UIDs; inspect reject/missing coverage first.",
+            }
 
     def key(name: str) -> tuple[float, float, float, float]:
         s = summaries[name]
@@ -170,6 +220,11 @@ def rank_groups(
         zh = probe.get("tau_zh") or {}
         far = zh.get("far")
         frr = zh.get("frr")
+        aggregate = s.get("locked_tau_by_lang_aggregate") or {}
+        if aggregate:
+            far = (aggregate.get("far") or {}).get("rate")
+            frr = (aggregate.get("frr") or {}).get("rate")
+
         p10 = s.get("pos_p10")
         eer = (s.get("eer") or {}).get("eer")
         return (
