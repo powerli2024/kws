@@ -33,6 +33,6 @@ Pre-BSS skip with residual models: default **OFF** until listen-100. Kind=**hypo
 ## Stop-loss
 
 - Oracle mismatch > 0 → stop.
-- T2 never differs from T0 because cos sidecar missing → do not claim L2 failed; collect eres scores.
+- T2 never differs from T0 because cos sidecar missing → do not claim L2 failed; run `scripts/build_eres_sidecar.py` (wavs already exist).
 - T1/T3 `need_se=False` FRR/FAR up → detector false positive.
 - Presence FAR up while FRR down → reject.

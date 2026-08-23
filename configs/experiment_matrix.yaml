@@ -105,6 +105,12 @@ runtime:
   skip_bss_snr_min_db: 15.0
   skip_bss_enabled: false
 
+cmd_cosine_eval:
+  role: kws_local_rank_not_contest_veto
+  metrics: [eer, auc, mean_gap]
+  groups: [raw_kws, t0, t2, skip_then_t0, skip_then_t2]
+  tau_probe_not_adopt: {zh: 0.29305, en: 0.357868}
+
 do_not:
   - train a new separator
   - use MMS-FA to pick enroll

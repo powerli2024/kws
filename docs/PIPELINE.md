@@ -15,7 +15,9 @@ $VM_OUT/{pos,neg}/s*/index.jsonl
 $VM_OUT/best_sep/index.jsonl + {pos,neg}/{uid}.wav
         │
         ▼
-kws   rebuild_best_sep → analyze_dual_zero → T0–T4 → Presence veto
+kws   rebuild_best_sep → build_eres_sidecar → T0–T4 picks
+        → export several best_sep_groups → eval_cmd_cosine (local rank)
+        → (later, extract@main) Presence veto on those groups
 ```
 
 Contest Presence / mix ASR is a **separate clone**: `/root/extract` on **`main`**. This BSS clone is `/root/extract-sep`. Do not `git checkout` between them. They share `/root/autodl-tmp` and conda env `ve`.
@@ -46,8 +48,15 @@ Then here:
 ```bash
 python scripts/rebuild_best_sep.py --pos-neg /root/autodl-tmp/kws_sep
 python scripts/analyze_dual_zero.py --pos-neg /root/autodl-tmp/kws_sep
-python scripts/run_t0_t4.py --pos-neg /root/autodl-tmp/kws_sep
+python scripts/run_kws_eval.py \
+  --pos-neg /root/autodl-tmp/kws_sep \
+  --data-dir /root/autodl-tmp/datasetA \
+  --backend eres2netv2 \
+  --out-root /root/autodl-tmp/kws_sep/best_sep_groups
 ```
+
+Sidecar: raw KWS is `$DATA_DIR/{kws_rel}` (never the AutoDL `kws_path`). Original BSS stream is `{uid}_peak.wav`.
+T2 without `reports/sidecars/cos_to_raw.jsonl` is not an L2 result.
 
 Handoff contract: extract `KWS_HANDOFF.md`. `mms_fa` must be false.
 Selector: within-stage min CER, original wins ties; across-stage min CER, prefer non-original on ties.

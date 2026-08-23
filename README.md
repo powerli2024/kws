@@ -22,38 +22,53 @@ So “63% original” is mostly a **tie-break**, not proof that BSS is useless. 
 |---|---|
 | Redo BSS on extract@sep (`./run_sep.sh`) | Invent a second separator in this repo |
 | Dual-zero stats (done on current dump) | MMS-FA enroll pick |
-| Enriched per-track index | Duration skip-sep (`dur≤1.8s`) |
-| T2: eres `cos(track, raw)` on dual-zero | Treat `cos(*, raw)` as purity |
-| T1: conditional SE on dirty original | Global SE (T4) as default |
-| Frozen Presence veto | `FORCE_CALIB` on locked mix VE |
+| **Fill ERes sidecar from existing wavs** | Wait for a missing-wav myth (`kws_path=/root/...` is a red herring) |
+| Export **several** `best_sep_*` groups | Rank groups by mean oracle CER |
+| Rank groups with **enroll↔CMD cosine** (pos vs neg) | Treat `cos(*, raw)` as purity |
+| T2 L2 on dual-zero; skip-sep only orig-unique-zero | Duration skip-sep (`dur≤1.8s`) |
+| Later: frozen Presence on extract@main using those groups | Wire Presence / `FORCE_CALIB` in this repo |
 
 ## Layout
 
 ```text
 configs/experiment_matrix.yaml
-src/kws/          oracle, skip-sep, L2, catastrophe, window min-cos, need_se
-scripts/          analyze_dual_zero, rebuild_best_sep, run_t0_t4, review_checklist
-docs/             frozen matrix, metrics, survey, review
-reports/          dual_zero.json, best_sep_enriched.jsonl
+src/kws/          oracle, L2, sidecar, wav_paths, eres, cmd_eval, export_groups
+scripts/          build_eres_sidecar, run_t0_t4, export_best_sep_groups, eval_cmd_cosine, run_kws_eval
+docs/             BEST_SEP_EVAL.md is the local eval contract
+reports/          sidecars/, t0_t4_picks.jsonl, eval/cmd_cosine.json
 ```
 
 ## Commands
 
 ```bash
 pip install -r requirements.txt
+# real encoder (same family as contest Presence):
+#   python -m pip install -U modelscope torch soundfile
+
 python -m pytest -q
 python scripts/review_checklist.py
-python scripts/analyze_dual_zero.py --pos-neg /path/to/pos_neg
-python scripts/rebuild_best_sep.py --pos-neg /path/to/pos_neg
-python scripts/run_t0_t4.py
+python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --allow-legacy
+
+# Full KWS-local eval (sidecar → picks → multi best_sep → CMD cosine rank)
+python scripts/run_kws_eval.py --backend eres2netv2 \
+  --data-dir d:\media\datasetA --pos-neg d:\media\pos_neg
+
+# Plumbing without modelscope:
+python scripts/run_kws_eval.py --backend fft --limit 20
 ```
 
-GPU BSS (required before claiming a new enroll dump): clone extract **`sep`**, then
-`bash scripts/rerun_sep.sh` (wraps `/root/extract/run_sep.sh`).
-Do not use extract `main` `./ve.sh` for this.
+GPU BSS (required before claiming a **new** enroll dump): clone extract **`sep`**, then
+`bash scripts/rerun_sep.sh`. Do not use extract `main` `./ve.sh` for BSS.
 
-T2 needs a sidecar jsonl: each row `{"uid": "...", "cos_to_raw": {"original": 0.9, "spk1": 0.8, "spk2": 0.1}}` (or `scores` / `cos`). Empty dicts and whole-row fallback are rejected. If the file is passed, every uid must be present; a partial file is an error, not a mixed T0/L2 run. Without `--cos-jsonl`, T2 degrades to T0 and records `n_l2_degraded_no_cos`. Hard-fail with `--strict-cos`.
+T2 sidecar: `scripts/build_eres_sidecar.py` writes
+`{"uid": "...", "cos_to_raw": {"original": ..., "spk1": ..., "spk2": ...}}`.
+Empty dicts and whole-row fallback are rejected. If the file is passed, every
+uid must be present. `--strict-cos` hard-fails when it is missing.
 
-## Adopt rule
+## Rank vs later veto
 
-Change default enroll only if frozen Presence FRR or FAR improves and the other does not worsen, and CER stays inside the constraint. Details: `docs/EXPERIMENT_MATRIX.md`.
+**This branch:** several `pos_neg/best_sep_groups/{raw_kws,t0,t2,...}` + EER/AUC/gap
+on `cos(enroll, CMD)`. See `docs/BEST_SEP_EVAL.md`.
+
+**Later, not here:** extract `main` frozen Presence (τ zh 0.29305 / en 0.357868),
+swap only enroll. Do not `FORCE_CALIB`.

@@ -128,6 +128,21 @@ def main() -> int:
         "docs/PIPELINE.md and rerun_sep.sh point at extract@sep",
     )
 
+    sidecar_script = (ROOT / "scripts" / "build_eres_sidecar.py").read_text(encoding="utf-8")
+    wav_paths = (ROOT / "src" / "kws" / "wav_paths.py").read_text(encoding="utf-8")
+    ok(
+        "eres_sidecar_builder_exists",
+        "resolve_kws_wav" in sidecar_script and '"peak"' in wav_paths and "original" in wav_paths,
+        "build_eres_sidecar.py resolves datasetA kws_rel; original stream is peak",
+    )
+    eval_script = ROOT / "scripts" / "eval_cmd_cosine.py"
+    export_script = ROOT / "scripts" / "export_best_sep_groups.py"
+    ok(
+        "cmd_eval_and_multi_best_sep",
+        eval_script.is_file() and export_script.is_file(),
+        "export_best_sep_groups.py and eval_cmd_cosine.py exist",
+    )
+
     failed = 0
     for name, cond, detail in CHECKS:
         mark = "PASS" if cond else "FAIL"
@@ -136,7 +151,8 @@ def main() -> int:
         print(f"[{mark}] {name}: {detail}")
     print(f"{len(CHECKS) - failed}/{len(CHECKS)} passed")
     print(
-        "NOTE: this review still cannot prove SE backends ran or Presence was evaluated."
+        "NOTE: this review still cannot prove ERes ran on GPU or CMD cosine was measured."
+        " Run scripts/run_kws_eval.py for that. Presence is a later extract@main step."
     )
     return 1 if failed else 0
 

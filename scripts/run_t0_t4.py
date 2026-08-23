@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from kws.arms import ALL_ARMS, CER_ORACLE_ARMS, L2_ARMS, se_mode  # noqa: E402
-from kws.iojson import load_jsonl, write_json  # noqa: E402
+from kws.iojson import load_jsonl, write_json, write_jsonl, limit_rows_balanced  # noqa: E402
 from kws.sidecar import SidecarError, clip_p_music, load_cos_sidecar, load_pmusic_sidecar  # noqa: E402
 from kws.t0_t4 import pick_track, t0_stream, apply_se_placeholder  # noqa: E402
 
@@ -32,7 +32,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--cos-jsonl", type=Path, default=None, help="uid + exactly one of cos_to_raw|scores|cos")
     p.add_argument("--pmusic-jsonl", type=Path, default=None, help="uid + p_music float or stream dict")
     p.add_argument("--out", type=Path, default=ROOT / "reports" / "t0_t4.json")
+    p.add_argument(
+        "--picks",
+        type=Path,
+        default=ROOT / "reports" / "t0_t4_picks.jsonl",
+        help="per-uid chosen stream for every arm (needed to materialize best_sep groups)",
+    )
     p.add_argument("--arm", choices=ARMS, default=None)
+    p.add_argument("--limit", type=int, default=0, help="score only the first N enriched rows")
     p.add_argument(
         "--strict-cos",
         action="store_true",
@@ -44,6 +51,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     rows = load_jsonl(args.enriched)
+    if args.limit:
+        rows = limit_rows_balanced(rows, args.limit)
     if args.cos_jsonl is not None:
         if not args.cos_jsonl.is_file():
             raise SidecarError(f"cos sidecar not found: {args.cos_jsonl}")
@@ -65,6 +74,7 @@ def main() -> None:
     if args.strict_cos and any(a in L2_ARMS for a in arms) and not cos_map:
         raise SidecarError("T2/T3 require --cos-jsonl under --strict-cos")
 
+    picks: dict[str, dict] = {}
     summary: dict[str, dict] = {}
     for arm in arms:
         n_dual = 0
@@ -84,6 +94,35 @@ def main() -> None:
             chosen = picked["chosen"]
             pm_clip = clip_p_music(pm_map.get(uid), chosen) if uid in pm_map else None
             se = apply_se_placeholder(chosen, arm=arm, p_music=pm_clip, snr=None)
+            slot = picks.setdefault(
+                uid,
+                {
+                    "uid": uid,
+                    "split": rec.get("split"),
+                    "id": rec.get("id"),
+                    "kws_rel": rec.get("kws_rel"),
+                    "best_stage": rec.get("best_stage"),
+                    "oracle_stream": t0,
+                    "oracle_cer": rec.get("oracle_cer"),
+                    "dual_zero": bool(rec.get("dual_zero")),
+                    "orig_unique_zero": bool(rec.get("orig_unique_zero")),
+                    "skip_sep_after_scores": bool(rec.get("skip_sep_after_scores")),
+                    "wake_text": rec.get("wake_text"),
+                    "lang": rec.get("lang"),
+                    "dest_rel": rec.get("dest_rel"),
+                    "src_wav_rel": rec.get("src_wav_rel"),
+                    "stream_names": list(streams),
+                    "arms": {},
+                },
+            )
+            slot["arms"][arm] = {
+                "chosen": chosen,
+                "reason": picked["reason"],
+                "dual_zero": picked["dual_zero"],
+                "reverted_catastrophe": picked["reverted_catastrophe"],
+                "l2_degraded": picked["l2_degraded"],
+                "se": se,
+            }
             if picked["dual_zero"]:
                 n_dual += 1
             if picked["l2_degraded"]:
@@ -128,6 +167,7 @@ def main() -> None:
         }
         if arm in L2_ARMS and n_degraded == summary[arm]["n"] and not cos_map:
             summary[arm]["stop_loss"] = "L2 had no cos sidecar; do not interpret as T2 failure; skip T3"
+    write_jsonl(args.picks, [picks[k] for k in picks])
     write_json(args.out, summary)
     print(
         json.dumps(
@@ -136,6 +176,7 @@ def main() -> None:
             indent=2,
         )
     )
+    print(f"[OK] picks {args.picks} n={len(picks)}")
 
 
 if __name__ == "__main__":

@@ -3,3 +3,7 @@ editdistance
 pypinyin
 pyyaml
 pytest
+soundfile
+# Optional for real ERes sidecar / CMD eval:
+#   modelscope torch
+# FFT --backend fft is plumbing only and must not rank groups.

@@ -9,4 +9,4 @@
 5. MMS-FA symbol scan is only a weak complement.
 6. `docs/PIPELINE.md` and `scripts/rerun_sep.sh` must name extract branch `sep`.
 
-It still **cannot** prove DeepFilterNet ran or Presence FRR/FAR was measured. A green checklist is not an adopt decision.
+It still **cannot** prove ERes ran on GPU or CMD cosine was measured. A green checklist is not a KWS-local rank. Run `scripts/run_kws_eval.py`. Presence on extract@main is later.

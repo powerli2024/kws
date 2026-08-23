@@ -3,8 +3,9 @@
 | Metric | Role | When | Not |
 |---|---|---|---|
 | `cos(e*, e_raw)` | **Catastrophe** | Always computable | Not “purer”. Threshold from data, grid 0.90–0.95 |
-| `cos(e*, e_cmd_crop)` | Train/dev check only | Offline, pos CMD with a target window | Test-time unknown pos/neg; CMD still dirty |
-| Frozen Presence FRR/FAR | **Veto / adopt** | Eval subset, freeze CMD + τ + encoder | Online enroll metric |
+| `cos(e*, e_cmd)` on **datasetA pos vs neg** | **KWS-local rank** (this repo) | Offline: EER / AUC / mean_gap of enroll↔CMD | Not contest Presence; CMD still dirty |
+| `cos(e*, e_cmd_crop)` | Optional crop of the above | If a target window exists | Test-time unknown pos/neg |
+| Frozen Presence FRR/FAR | **Later contest veto** | extract `main`, freeze CMD + τ + encoder | Not computed on the kws branch |
 | Hard-neg `cos(e*, e_other)` | Optional observation | Only if different uid ⇒ different speaker | datasetA does not guarantee this |
 | `p_music` | Residual trigger | After calibration | Speaker quality |
 | DNSMOS BAK | Residual trigger / SE rank | After calibration | Speaker quality |

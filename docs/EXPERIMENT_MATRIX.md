@@ -14,7 +14,8 @@ This file is the contract. Code that disagrees is a bug.
 
 Implementation: `CER_ORACLE_ARMS = {T0,T1,T4}`, `L2_ARMS = {T2,T3}`. A cosine sidecar that prefers a sep track must move T2 and must not move T4.
 
-Primary keys: **frozen Presence FRR and FAR** (contest RR = 1 − FAR on neg).  
+**KWS-local keys (this repo):** enroll↔CMD cosine EER / AUC / mean_gap on datasetA pos vs neg.  
+**Later contest keys:** frozen Presence FRR and FAR (extract `main`).  
 Constraints: mean CER ≤ 0.03; CER=0 rate drop ≤ 2 pp.  
 `cos(e*, e_raw)` is catastrophe-only. `p_music` / DNSMOS BAK are residual triggers.
 
@@ -38,12 +39,13 @@ SE safety: drop SE if `cos(se, pre) < τ` (grid 0.90–0.95) or CER rises by > 0
 | dual-zero | T2 must move here or T2 is a no-op |
 | orig-unique-zero | text-safe skip-sep rate |
 | listen-100 | lock p_music / window percentile / need_se |
-| Presence pos/neg CMD | **veto**; freeze τ zh=0.29305 en=0.357868 |
+| Presence pos/neg CMD | **later veto** on extract@main; freeze τ zh=0.29305 en=0.357868 |
+| enroll↔CMD cosine pos vs neg | **this-repo rank** of exported best_sep groups |
 | hard-neg cos | only if different uid ⇒ different speaker is guaranteed; else unused |
 
 ## Do first / do not do
 
-**Do first:** extract@sep `./run_sep.sh` (all BSS) → dual-zero stats → enriched best_sep (per-track CER, no MMS) → T2 on dual-zero with eres cos → T1 conditional SE on original winners with high p_music → Presence veto.
+**Do first:** extract@sep `./run_sep.sh` (all BSS) → dual-zero stats → enriched best_sep (per-track CER, no MMS) → **build ERes sidecar from existing wavs** → T2 on dual-zero → export `raw_kws/t0/t2/skip_*` → **CMD cosine rank**. Presence veto is later on extract@main.
 
 BSS code lives only in [extract `sep`](https://github.com/powerli2024/extract/tree/sep). See `docs/PIPELINE.md`.
 
@@ -52,7 +54,7 @@ BSS code lives only in [extract `sep`](https://github.com/powerli2024/extract/tr
 ## Stop-loss
 
 - Recomputed CER oracle ≠ `best_sep` oracle → stop, indexes drifted.
-- T2 never differs from T0 → do not run T3; L2 has no gradient (missing cos sidecar).
+- T2 never differs from T0 → do not claim L2 failed until `build_eres_sidecar.py` has run (wavs already exist); if sidecar is present and T2 still equals T0, skip T3.
 - T1/T3 `need_se=False` subset FRR or FAR up → detector false-positive, do not ship.
 - T4 beats T1 → do not ship T4; retune need_se.
 - Presence FAR up while FRR down → reject (iso-FAR not held).

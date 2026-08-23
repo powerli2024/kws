@@ -52,3 +52,16 @@ def index_by_uid(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         if uid:
             out[uid] = r
     return out
+
+
+def limit_rows_balanced(rows: list[dict[str, Any]], n: int) -> list[dict[str, Any]]:
+    """Keep both splits so CMD-cosine EER is defined on a smoke subset."""
+    if not n or n <= 0 or n >= len(rows):
+        return rows
+    pos = [r for r in rows if str(r.get("split") or "") == "pos"]
+    neg = [r for r in rows if str(r.get("split") or "") == "neg"]
+    if not pos or not neg:
+        return rows[:n]
+    n_neg = max(1, n // 2)
+    n_pos = max(1, n - n_neg)
+    return pos[:n_pos] + neg[:n_neg]
