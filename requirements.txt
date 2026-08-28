@@ -6,3 +6,5 @@ pytest
 soundfile
 # ERes / CMD eval (same interpreter as the run):
 #   python -m pip install -U torch modelscope addict simplejson sortedcontainers datasets
+# q_kw raw NLL (AutoDL, Transformers backend; model weights are separate):
+#   python -m pip install -U qwen-asr torch transformers soundfile

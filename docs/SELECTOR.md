@@ -1,5 +1,10 @@
 # Selector contract (after review of the v3 scheme)
 
+The normative formulas and complete decision order are in
+[`CORE_METRIC.md`](CORE_METRIC.md). In one line: first form the exact-minimum-CER
+candidate set, then maximize calibrated `q_kw`; `cos(candidate,raw)` may only
+revert a catastrophic separated winner.
+
 `cos(candidate, raw)` is a **catastrophe gate**, not a purity score. Official T2
 rank is known-wake continuous confidence `q_kw` (or `-NLL`). Heuristic `p_music`
 does not enter the official score.

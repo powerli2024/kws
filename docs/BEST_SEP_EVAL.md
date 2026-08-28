@@ -1,5 +1,10 @@
 # Evaluating which `best_sep` is cleaner
 
+The exact per-UID selection and whole-group metric formulas are specified in
+[`CORE_METRIC.md`](CORE_METRIC.md). The key separation is: `q_kw` selects a
+track without looking at CMD; enroll↔CMD cosine evaluates an exported group
+offline and must never be fed back into per-UID selection.
+
 Enroll quality is **not** “lower mean oracle CER”. On the current dump ~94% of
 winners are already CER=0, and 89.9% of original winners are **dual-zero**.
 Ranking by CER just restates the tie-break.

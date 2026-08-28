@@ -1,6 +1,17 @@
 # kws — speaker-first KWS enrollment purification
 
-Repo for proposal v2: CER is a **constraint**, not the enroll objective. Selector is **oracle CER** (original wins ties). **No MMS-FA.**
+Repo for proposal v2: CER is a **constraint**, not the enroll objective. E1 is
+CER oracle (original wins ties); E2 ranks same-CER candidates by calibrated
+`q_kw`. **No MMS-FA.**
+
+## Core metric
+
+Per UID, the selector is lexicographic: **minimum-CER eligible set first, then
+maximum `q_kw`** computed from length-normalized forced-decode token NLL. For a
+whole `best_sep` group, enroll↔CMD cosine is an offline screen; frozen Presence
+and the real contest score are the final adoption veto. Exact formulas, tie
+rules, calibration and forbidden metrics are defined in
+[`docs/CORE_METRIC.md`](docs/CORE_METRIC.md).
 
 **This repo does not run MossFormer.** Redo all BSS first on
 [powerli2024/extract](https://github.com/powerli2024/extract) branch **`sep`**
@@ -54,6 +65,21 @@ python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --allow-legacy
 python scripts/run_kws_eval.py --backend eres2netv2 \
   --data-dir d:\media\datasetA --pos-neg d:\media\pos_neg \
   --qkw-jsonl d:\media\q_kw_forced_decode.jsonl --require-e2
+
+# Build the raw forced-decode NLL sidecar first (ranking only, not calibrated q_kw):
+python scripts/score_qkw_nll.py \
+  --pos-neg d:\media\pos_neg \
+  --model-dir d:\models\Qwen3-ASR-1.7B \
+  --limit 20 \
+  --out reports/sidecars/q_kw_nll_smoke.jsonl \
+  --meta reports/sidecars/q_kw_nll_smoke_meta.json \
+  --overwrite
+# Full run uses a separate output/signature and can resume safely.
+python scripts/score_qkw_nll.py \
+  --pos-neg d:\media\pos_neg \
+  --model-dir d:\models\Qwen3-ASR-1.7B \
+  --overwrite
+# Interrupted full run: repeat the same command with --resume instead.
 
 # Plumbing only: FFT does not produce a frozen-threshold rank.
 python scripts/run_kws_eval.py --backend fft --limit 20

@@ -4,7 +4,8 @@
 This is NOT MMS-FA. It is a frozen-text feature: token NLL / coverage / margin.
 Do not invent q_kw from CER (4-char CER is too discrete).
 
-Until a forced-decode dump exists, pass an already-scored jsonl with
+Generate raw NLL with ``scripts/score_qkw_nll.py`` or pass an externally
+calibrated sidecar with
   {"uid": "...", "q_kw": {"original": 0.9, "spk1": 0.2, "spk2": 0.1}}
 or {"uid": "...", "nll": {...}} (lower NLL is better; the loader negates it).
 
@@ -36,8 +37,9 @@ def main() -> int:
     args = parse_args()
     if not args.from_jsonl.is_file():
         raise SystemExit(
-            f"missing {args.from_jsonl}. Build q_kw with a frozen ASR forced-decode "
-            "(known wake text), not from CER and not from cos(track, raw)."
+            f"missing {args.from_jsonl}. Run scripts/score_qkw_nll.py for raw NLL, "
+            "or build calibrated q_kw from frozen forced-decode scores; never derive it "
+            "from CER or cos(track, raw)."
         )
     n = len(load_qkw_sidecar(args.from_jsonl))
     args.out.parent.mkdir(parents=True, exist_ok=True)

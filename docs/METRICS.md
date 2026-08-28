@@ -1,7 +1,12 @@
 # Metric availability
 
+For the normative selector and evaluation formulas, see
+[`CORE_METRIC.md`](CORE_METRIC.md). Do not collapse the per-UID selector and the
+whole-group offline evaluation into one weighted score.
+
 | Metric | Role | When | Not |
 |---|---|---|---|
+| `q_kw` / `-NLL` | **Per-UID core rank** | Among exact-min-CER candidates | Whole-group quality; uncalibrated NLL cannot drive absolute reject thresholds |
 | `cos(e*, e_raw)` | **Catastrophe** | Always computable | Not “purer”. Threshold from data, grid 0.90–0.95 |
 | `cos(e*, e_cmd)` on **datasetA pos vs neg** | **KWS-local rank** (this repo) | Offline: EER / AUC / mean_gap of enroll↔CMD | Not contest Presence; CMD still dirty |
 | `cos(e*, e_cmd_crop)` | Optional crop of the above | If a target window exists | Test-time unknown pos/neg |
