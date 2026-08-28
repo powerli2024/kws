@@ -11,6 +11,30 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 
 
+def _configure_generation_logging(wrapper: object) -> None:
+    """Keep Qwen/Transformers pad-token configuration from printing per call."""
+    import warnings
+
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*[Ss]etting.*pad[_ ]token[_ ]id.*eos[_ ]token[_ ]id.*",
+    )
+    try:
+        import transformers
+
+        transformers.logging.set_verbosity_error()
+    except Exception:
+        pass
+    for obj in (wrapper, getattr(wrapper, "model", None)):
+        config = getattr(obj, "generation_config", None) if obj is not None else None
+        eos = getattr(config, "eos_token_id", None) if config is not None else None
+        if config is not None and eos is not None and getattr(config, "pad_token_id", None) is None:
+            try:
+                config.pad_token_id = eos
+            except Exception:
+                pass
+
+
 @dataclass(frozen=True)
 class NLLResult:
     nll: float
@@ -112,6 +136,7 @@ class Qwen3ASRNLLScorer:
         }.get(str(dtype).lower())
         if dtype_obj is None:
             raise ValueError(f"unsupported dtype {dtype!r}")
+        _configure_generation_logging(Qwen3ASRModel)
         self.torch = torch
         self.dtype = dtype_obj
         self.wrapper = Qwen3ASRModel.from_pretrained(
@@ -120,6 +145,7 @@ class Qwen3ASRNLLScorer:
             device_map=device,
             max_inference_batch_size=int(max_batch_size),
         )
+        _configure_generation_logging(self.wrapper)
         if getattr(self.wrapper, "backend", "transformers") != "transformers":
             raise RuntimeError("q_kw NLL requires the Qwen3-ASR Transformers backend, not vLLM")
         self.model = getattr(self.wrapper, "model", None)

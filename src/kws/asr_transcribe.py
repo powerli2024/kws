@@ -8,6 +8,36 @@ from typing import Sequence
 import numpy as np
 
 
+def _configure_generation_logging(wrapper: object) -> None:
+    """Set the Qwen generation pad token once; avoid one warning per batch."""
+    import warnings
+
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*[Ss]etting.*pad[_ ]token[_ ]id.*eos[_ ]token[_ ]id.*",
+    )
+    try:
+        import transformers
+
+        transformers.logging.set_verbosity_error()
+    except Exception:
+        pass
+    objects = [wrapper, getattr(wrapper, "model", None)]
+    objects.extend(getattr(obj, key, None) for obj in list(objects) for key in ("model", "thinker"))
+    for obj in objects:
+        if obj is None:
+            continue
+        config = getattr(obj, "generation_config", None)
+        if config is None:
+            config = getattr(obj, "config", None)
+        eos = getattr(config, "eos_token_id", None) if config is not None else None
+        if eos is not None and config is not None and getattr(config, "pad_token_id", None) is None:
+            try:
+                config.pad_token_id = eos
+            except Exception:
+                pass
+
+
 def qwen_language(lang: str) -> str:
     value = str(lang).strip().lower()
     if value in {"zh", "cn", "chinese", "中文", "mandarin"}:
@@ -40,6 +70,7 @@ class Qwen3ASRTranscriber:
         }.get(str(dtype).lower())
         if dtype_obj is None:
             raise ValueError(f"unsupported dtype {dtype!r}")
+        _configure_generation_logging(Qwen3ASRModel)
         self.model = Qwen3ASRModel.from_pretrained(
             str(model_dir),
             dtype=dtype_obj,
@@ -47,6 +78,7 @@ class Qwen3ASRTranscriber:
             max_inference_batch_size=max(1, int(max_batch_size)),
             max_new_tokens=max(1, int(max_new_tokens)),
         )
+        _configure_generation_logging(self.model)
         self.max_batch_size = max(1, int(max_batch_size))
 
     def transcribe_many(

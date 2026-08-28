@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export TRANSFORMERS_VERBOSITY="${TRANSFORMERS_VERBOSITY:-error}"
 
 # Full raw/SE recompute.  Spectral is an executable plumbing/control arm;
 # production neural SE should use SE_BACKEND=command and SE_COMMAND below.
