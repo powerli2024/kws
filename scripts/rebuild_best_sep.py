@@ -39,6 +39,8 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="allow a pos_neg tree without kws_handoff.json (pre-sep-branch dumps)",
     )
+    p.add_argument("--expected-uids", type=int, default=1838, help="0 disables coverage assertion")
+    p.add_argument("--allow-invalid", action="store_true", help="debug only: allow skipped/mismatched rows")
     return p.parse_args()
 
 
@@ -96,7 +98,10 @@ def main() -> None:
             packed = {k: {"cer": float(v["cer"])} for k, v in streams.items() if "cer" in v}
             name, cer = oracle_of(packed, prefer_original=True)
             recomputed = {"oracle_stream": name, "oracle_cer": round(cer, 4)}
-            if name != rec.get("oracle_stream"):
+            if (
+                name != rec.get("oracle_stream")
+                or abs(float(cer) - float(rec.get("oracle_cer"))) > 1e-6
+            ):
                 n_mismatch += 1
         cls = classify_streams(streams)
         skip = skip_sep_after_scores(streams)
@@ -116,6 +121,17 @@ def main() -> None:
         )
     write_jsonl(args.out, out)
     print(f"wrote {args.out} n={len(out)} oracle_mismatch={n_mismatch} skipped_invalid={n_skipped}")
+    failures = []
+    if args.expected_uids and len(winners) != args.expected_uids:
+        failures.append(f"best_sep rows={len(winners)} expected={args.expected_uids}")
+    if args.expected_uids and len(out) != args.expected_uids:
+        failures.append(f"enriched rows={len(out)} expected={args.expected_uids}")
+    if n_mismatch:
+        failures.append(f"oracle_mismatch={n_mismatch}")
+    if n_skipped:
+        failures.append(f"skipped_invalid={n_skipped}")
+    if failures and not args.allow_invalid:
+        raise SystemExit("[ERR] " + "; ".join(failures))
 
 
 if __name__ == "__main__":

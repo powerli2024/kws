@@ -84,6 +84,7 @@ def semantic_fingerprint(rows: Iterable[Mapping[str, Any]]) -> str:
         }
         packed.append({
             "uid": str(row["uid"]),
+            "metric": row.get("metric"),
             "oracle_stream": row.get("oracle_stream"),
             "oracle_cer": row.get("oracle_cer"),
             "oracle_hyp": row.get("oracle_hyp"),

@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from kws.iojson import write_json  # noqa: E402
+from kws.sep_audit import audit_sep_root  # noqa: E402
 from kws.stage_compare import build_report  # noqa: E402
 
 
@@ -21,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--splits", default="pos,neg")
     p.add_argument("--hash-wav", action="store_true", help="slow exact-content duplicate check")
     p.add_argument("--expected-uids", type=int, default=1838, help="0 disables global coverage assertion")
+    p.add_argument("--skip-input-audit", action="store_true", help="debug only")
     p.add_argument("--out-json", type=Path, default=ROOT / "reports" / "all_stage_comparison.json")
     p.add_argument("--out-md", type=Path, default=ROOT / "reports" / "all_stage_comparison.md")
     return p.parse_args()
@@ -77,6 +79,16 @@ def main() -> int:
     splits = [value.strip() for value in args.splits.split(",") if value.strip()]
     if not splits or any(value not in {"pos", "neg"} for value in splits):
         raise SystemExit("[ERR] --splits must contain pos and/or neg")
+    if not args.skip_input_audit:
+        audit = audit_sep_root(
+            args.pos_neg, splits, expected_uids=args.expected_uids,
+            check_duration=False, require_handoff=False,
+        )
+        if not audit["ok"]:
+            raise SystemExit(
+                f"[ERR] extract-sep input audit failed: {len(audit['failures'])} failures; "
+                "run scripts/audit_sep_input.py for details"
+            )
     report = build_report(args.pos_neg, splits, hash_wav=args.hash_wav)
     union = sum(int(block["n_union_uid"]) for block in report["splits"].values())
     if args.expected_uids and union != args.expected_uids:

@@ -50,6 +50,8 @@ def index_by_uid(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     for r in rows:
         uid = str(r.get("uid") or "")
         if uid:
+            if uid in out:
+                raise ValueError(f"duplicate uid in index: {uid}")
             out[uid] = r
     return out
 

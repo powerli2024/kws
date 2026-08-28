@@ -60,7 +60,12 @@ pip install -r requirements.txt
 
 python -m pytest -q
 python scripts/review_checklist.py
-python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --allow-legacy
+
+# Fresh extract-sep runs: validate all stages, pinyin metric, gate aliases,
+# WAV coverage and full-audio duration before any comparison/ranking.
+python scripts/audit_sep_input.py --pos-neg d:\media\pos_neg \
+  --expected-uids 1838 --check-duration --require-handoff
+python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --expected-uids 1838
 
 # Systematic s1-s8/thr comparison before consuming the across-stage winner.
 # Detects identical gate cohorts, identical scored indexes and optional exact

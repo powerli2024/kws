@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from kws.iojson import write_json, write_jsonl  # noqa: E402
+from kws.sep_audit import audit_sep_root  # noqa: E402
 from kws.stage_compare import build_report, discover_stage_arms  # noqa: E402
 
 
@@ -26,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--top-k", type=int, default=20, help="ranked unique audio kept per UID; 0=all")
     p.add_argument("--no-hash-wav", action="store_true", help="faster, but copied audio cannot be exactly deduplicated")
     p.add_argument("--allow-missing-wav", action="store_true", help="smoke only")
+    p.add_argument("--skip-input-audit", action="store_true", help="debug only")
     p.add_argument(
         "--score-conflict-policy", choices=("median", "min", "max", "fail"), default="median",
         help="combine repeated ASR scores for byte-identical WAVs; median is robust default",
@@ -119,6 +121,16 @@ def main() -> int:
     splits = [value.strip() for value in args.splits.split(",") if value.strip()]
     if not splits or any(value not in {"pos", "neg"} for value in splits):
         raise SystemExit("[ERR] --splits must contain pos and/or neg")
+    if not args.skip_input_audit:
+        audit = audit_sep_root(
+            args.pos_neg, splits, expected_uids=args.expected_uids,
+            check_duration=False, require_handoff=False,
+        )
+        if not audit["ok"]:
+            raise SystemExit(
+                f"[ERR] extract-sep input audit failed: {len(audit['failures'])} failures; "
+                "run scripts/audit_sep_input.py for details"
+            )
     hash_wav = not args.no_hash_wav
     comparison = build_report(args.pos_neg, splits, hash_wav=False)
     by_uid: dict[str, list[dict]] = defaultdict(list)

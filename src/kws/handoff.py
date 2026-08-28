@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-SCHEMA = "kws_sep_handoff/v1"
+SCHEMA = "kws_sep_handoff/v2"
+LEGACY_SCHEMA = "kws_sep_handoff/v1"
 EXTRACT_REPO = "https://github.com/powerli2024/extract"
 EXTRACT_BRANCH = "sep"
 
@@ -26,13 +27,18 @@ def load_handoff(path: str | Path) -> dict[str, Any]:
     if not isinstance(obj, dict):
         raise HandoffError(f"{p} is not an object")
     schema = obj.get("schema")
-    if schema != SCHEMA:
-        raise HandoffError(f"{p} schema={schema!r} expected {SCHEMA}")
+    if schema not in {SCHEMA, LEGACY_SCHEMA}:
+        raise HandoffError(f"{p} schema={schema!r} expected {SCHEMA} or {LEGACY_SCHEMA}")
     if "mms_fa" not in obj or obj["mms_fa"] is not False:
         raise HandoffError(f"{p} mms_fa must be false, got {obj.get('mms_fa')!r}")
     within = obj.get("selector_within_stage")
     if within and within != "oracle_cer_prefer_original":
         raise HandoffError(f"{p} selector_within_stage={within!r}")
+    if schema == SCHEMA:
+        if obj.get("audio_length_policy") != "full_utterance_no_truncation":
+            raise HandoffError(f"{p} requires full_utterance_no_truncation")
+        if float(obj.get("max_sep_sec") or 0.0) != 0.0:
+            raise HandoffError(f"{p} max_sep_sec must be 0")
     return obj
 
 
