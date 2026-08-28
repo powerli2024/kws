@@ -73,6 +73,8 @@ python scripts/export_stage_routes.py --pos-neg d:\media\pos_neg \
 
 # Same-ID real audio ranking across every stage/stream, exact WAV dedupe on.
 python scripts/rank_same_uid_audio.py --pos-neg d:\media\pos_neg --expected-uids 1838
+# Identical-WAV CER disagreements use median by default and are written to
+# reports/same_uid_audio_score_conflicts.jsonl.
 
 # Full E2 eval. q_kw must be a calibrated [0,1] known-wake confidence sidecar.
 # NLL may rank tracks, but cannot activate the absolute-confidence reject gate.

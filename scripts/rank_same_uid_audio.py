@@ -9,6 +9,7 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
+from statistics import median
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -25,9 +26,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--top-k", type=int, default=20, help="ranked unique audio kept per UID; 0=all")
     p.add_argument("--no-hash-wav", action="store_true", help="faster, but copied audio cannot be exactly deduplicated")
     p.add_argument("--allow-missing-wav", action="store_true", help="smoke only")
-    p.add_argument("--allow-score-conflict", action="store_true", help="smoke only: identical WAV may have different CER")
+    p.add_argument(
+        "--score-conflict-policy", choices=("median", "min", "max", "fail"), default="median",
+        help="combine repeated ASR scores for byte-identical WAVs; median is robust default",
+    )
+    p.add_argument("--allow-score-conflict", action="store_true", help="deprecated alias: use median instead of fail")
     p.add_argument("--out-jsonl", type=Path, default=ROOT / "reports" / "same_uid_audio_rank.jsonl")
     p.add_argument("--out-summary", type=Path, default=ROOT / "reports" / "same_uid_audio_rank_summary.json")
+    p.add_argument("--out-conflicts", type=Path, default=ROOT / "reports" / "same_uid_audio_score_conflicts.jsonl")
     p.add_argument("--out-md", type=Path, default=ROOT / "reports" / "same_uid_audio_rank.md")
     return p.parse_args()
 
@@ -85,6 +91,8 @@ def render_md(summary: dict) -> str:
         f"- unique audio candidates: `{summary['n_unique_audio']}`",
         f"- exact WAV hashing: `{summary['hash_wav']}`",
         f"- missing WAV: `{summary['n_missing_wav']}`", "",
+        f"- byte-identical audio with conflicting CER: `{summary['n_score_conflict_audio']}`",
+        f"- conflict policy: `{summary['score_conflict_policy']}`", "",
         "CER ranking is text-preservation evidence only. Equal-CER audio remains tied;",
         "speaker purity must be resolved later by q_kw/FA and frozen Presence/CMD.", "",
         "## Fixed independent-route leaderboard", "",
@@ -145,6 +153,7 @@ def main() -> int:
         raise SystemExit(f"[ERR] UID coverage={len(by_uid)} expected={args.expected_uids}")
 
     ranked_rows: list[dict] = []
+    conflict_rows: list[dict] = []
     stage_wins: dict[str, dict[str, float]] = defaultdict(lambda: {"best_tie_uid": 0, "unique_best_uid": 0, "tie_credit": 0.0})
     n_unique_audio = 0
     for uid in sorted(by_uid):
@@ -155,18 +164,43 @@ def main() -> int:
             groups[str(key)].append(ref)
         unique = []
         for key, aliases in groups.items():
-            aliases.sort(key=lambda item: (item["cer"], item["stage"], item["stream"]))
+            aliases.sort(key=lambda item: (item["stage"], item["stream"]))
             cer_values = sorted({round(float(item["cer"]), 9) for item in aliases})
-            if len(cer_values) > 1 and not args.allow_score_conflict:
+            policy = "median" if args.allow_score_conflict and args.score_conflict_policy == "fail" else args.score_conflict_policy
+            if len(cer_values) > 1 and policy == "fail":
                 raise SystemExit(
                     f"[ERR] uid={uid}: byte-identical WAV has conflicting CER {cer_values}; "
-                    "ASR scoring is not reproducible (use --allow-score-conflict only for diagnosis)"
+                    "rerun with --score-conflict-policy median and inspect the conflict report"
                 )
-            canonical = dict(aliases[0])
-            canonical["aliases"] = [{"stage": x["stage"], "stream": x["stream"], "wav": x["wav"]} for x in aliases]
+            observed = [float(item["cer"]) for item in aliases]
+            aggregate_cer = (
+                min(observed) if policy == "min" else
+                max(observed) if policy == "max" else
+                float(median(observed))
+            )
+            representative = min(
+                aliases,
+                key=lambda item: (abs(float(item["cer"]) - aggregate_cer), item["stage"], item["stream"]),
+            )
+            canonical = dict(representative)
+            canonical["cer"] = round(aggregate_cer, 9)
+            canonical["aliases"] = [
+                {"stage": x["stage"], "stream": x["stream"], "wav": x["wav"], "cer": x["cer"], "hyp": x["hyp"]}
+                for x in aliases
+            ]
             canonical["duplicate_refs"] = len(aliases)
             canonical["cer_values"] = cer_values
             canonical["score_conflict"] = len(cer_values) > 1
+            canonical["score_aggregate"] = policy
+            if len(cer_values) > 1:
+                conflict_rows.append({
+                    "uid": uid,
+                    "audio_sha256": None if key.startswith(uid + "|") else key,
+                    "cer_values": cer_values,
+                    "resolved_cer": canonical["cer"],
+                    "policy": policy,
+                    "references": canonical["aliases"],
+                })
             unique.append(canonical)
         unique.sort(key=lambda item: (item["cer"], item["stage"], item["stream"]))
         n_unique_audio += len(unique)
@@ -195,6 +229,7 @@ def main() -> int:
             "n_candidate_refs": len(refs),
             "n_unique_audio": len(unique),
             "n_best_audio_ties": len(best),
+            "n_score_conflict_audio": sum(bool(item["score_conflict"]) for item in unique),
             "best_stages": best_stages,
             "ranking": unique if args.top_k == 0 else unique[: args.top_k],
             "ranking_truncated": bool(args.top_k and len(unique) > args.top_k),
@@ -225,17 +260,23 @@ def main() -> int:
         "n_missing_wav": len(missing),
         "missing_wav_head": missing[:20],
         "top_k_per_uid": args.top_k,
+        "score_conflict_policy": args.score_conflict_policy,
+        "n_score_conflict_audio": len(conflict_rows),
+        "n_score_conflict_uid": len({row["uid"] for row in conflict_rows}),
+        "score_conflict_uid_head": sorted({row["uid"] for row in conflict_rows})[:20],
         "route_leaderboard": _route_leaderboard(comparison, args.expected_uids),
         "best_audio_stage_leaderboard": win_rows,
         "warning": "Cross-stage per-UID best is an offline CER oracle, not a deployable route.",
     }
     write_jsonl(args.out_jsonl, ranked_rows)
+    write_jsonl(args.out_conflicts, conflict_rows)
     write_json(args.out_summary, summary)
     args.out_md.parent.mkdir(parents=True, exist_ok=True)
     args.out_md.write_text(render_md(summary), encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k not in {"route_leaderboard", "best_audio_stage_leaderboard"}}, ensure_ascii=False, indent=2))
     print(f"[OK] {args.out_jsonl}")
     print(f"[OK] {args.out_summary}")
+    print(f"[OK] {args.out_conflicts} n={len(conflict_rows)}")
     print(f"[OK] {args.out_md}")
     return 0
 

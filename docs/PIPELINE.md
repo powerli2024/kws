@@ -95,6 +95,10 @@ python scripts/rank_same_uid_audio.py \
 
 This writes `reports/same_uid_audio_rank.jsonl` (per-UID audio ranking) and
 `reports/same_uid_audio_rank.{json,md}` (fixed-route and stage win rankings).
+If a copied byte-identical WAV has different CER in different stage indexes,
+the default robust policy uses their median and records every reference in
+`reports/same_uid_audio_score_conflicts.jsonl`. Use
+`--score-conflict-policy fail` only when auditing ASR reproducibility.
 The per-UID cross-stage winner is an offline CER ceiling only; use
 `export_stage_routes.py` for deployable independent routes.
 
