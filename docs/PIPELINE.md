@@ -43,9 +43,20 @@ mkdir -p /root/autodl-tmp/pos_neg
 ln -sfn /root/autodl-tmp/kws_sep/best_sep /root/autodl-tmp/pos_neg/best_sep
 ```
 
-Then here:
+Then here. First compare every stage/threshold arm; `rebuild_best_sep.py` is
+only a downstream rehydration of the already selected `best_sep`, not the
+stage-comparison command:
 
 ```bash
+python scripts/compare_all_stages.py \
+  --pos-neg /root/autodl-tmp/kws_sep \
+  --expected-uids 1838
+# Slow confirmation when thr_a/thr_b appear duplicated:
+python scripts/compare_all_stages.py \
+  --pos-neg /root/autodl-tmp/kws_sep \
+  --expected-uids 1838 --hash-wav
+
+# Only after reviewing reports/all_stage_comparison.{json,md}:
 python scripts/rebuild_best_sep.py --pos-neg /root/autodl-tmp/kws_sep
 python scripts/analyze_dual_zero.py --pos-neg /root/autodl-tmp/kws_sep
 python scripts/run_kws_eval.py \
@@ -54,6 +65,38 @@ python scripts/run_kws_eval.py \
   --backend eres2netv2 \
   --out-root /root/autodl-tmp/kws_sep/best_sep_groups
 ```
+
+For formal comparison, export each selected stage/thr as an **independent
+route**. Do not use `best_sep`'s per-UID across-stage oracle as an experimental
+arm. A gated route uses its declared parent only for UIDs outside that gate:
+
+```bash
+python scripts/export_stage_routes.py \
+  --pos-neg /root/autodl-tmp/kws_sep \
+  --out-root /root/autodl-tmp/kws_sep/stage_routes \
+  --route s1_onnx_full \
+  --route s2_cv_full \
+  --route s5_onnx_then_cv_gate/thr_a
+```
+
+Each output is a standalone VE enrollment root:
+`stage_routes/{stage_or_stage__thr}/index.jsonl` plus `pos/` and `neg/` WAVs.
+Its index also retains the selected source row's complete `streams` field for
+later q_kw/FA experiments.
+
+To inspect the best-performing real audio for the same UID across all s1--s8
+streams, with copied WAVs deduplicated by SHA-256:
+
+```bash
+python scripts/rank_same_uid_audio.py \
+  --pos-neg /root/autodl-tmp/kws_sep \
+  --expected-uids 1838 --top-k 20
+```
+
+This writes `reports/same_uid_audio_rank.jsonl` (per-UID audio ranking) and
+`reports/same_uid_audio_rank.{json,md}` (fixed-route and stage win rankings).
+The per-UID cross-stage winner is an offline CER ceiling only; use
+`export_stage_routes.py` for deployable independent routes.
 
 Sidecar: raw KWS is `$DATA_DIR/{kws_rel}` (never the AutoDL `kws_path`). Original BSS stream is `{uid}_peak.wav`.
 T2 without `reports/sidecars/cos_to_raw.jsonl` is not an L2 result.

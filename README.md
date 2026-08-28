@@ -62,6 +62,18 @@ python -m pytest -q
 python scripts/review_checklist.py
 python scripts/rebuild_best_sep.py --pos-neg d:\media\pos_neg --allow-legacy
 
+# Systematic s1-s8/thr comparison before consuming the across-stage winner.
+# Detects identical gate cohorts, identical scored indexes and optional exact
+# WAV duplicates; gated arms are evaluated with parent fallback at full coverage.
+python scripts/compare_all_stages.py --pos-neg d:\media\pos_neg --expected-uids 1838
+
+# Export fixed routes separately; never mix the per-UID best stage for a fair arm.
+python scripts/export_stage_routes.py --pos-neg d:\media\pos_neg \
+  --route s1_onnx_full --route s5_onnx_then_cv_gate/thr_a
+
+# Same-ID real audio ranking across every stage/stream, exact WAV dedupe on.
+python scripts/rank_same_uid_audio.py --pos-neg d:\media\pos_neg --expected-uids 1838
+
 # Full E2 eval. q_kw must be a calibrated [0,1] known-wake confidence sidecar.
 # NLL may rank tracks, but cannot activate the absolute-confidence reject gate.
 python scripts/run_kws_eval.py --backend eres2netv2 \
