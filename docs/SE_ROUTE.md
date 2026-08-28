@@ -53,6 +53,7 @@ AutoDL 全量运行：
 ```bash
 cd /root/kws
 POS_NEG=/root/autodl-tmp/kws_sep \
+DATA_DIR=/root/autodl-tmp/datasetA \
 ASR_MODEL_DIR=/root/autodl-tmp/Qwen3-ASR-1.7B \
 WORK_DIR=/root/autodl-tmp/kws_se_route \
 S7_ARM=你的冻结s7标签 \
@@ -64,6 +65,10 @@ bash scripts/run_se_recompute.sh
 
 第一次摸底可省略 `S7_ARM`，也可用 `SE_BACKEND=spectral` 检查整个管线。中断后保持相同模型、输入和参数，
 设置 `RESUME=1` 即可复用哈希评分；签名不一致会拒绝混用旧结果。
+
+旧版 extract-sep index 如果只有 `wake_text` 而没有 `lang`，KWS 会按注册文本自动推导 `zh/en`，并在
+`report.json` 的 `coverage.metadata_sources` 标记为 `inferred_from_wake_text`；不需要为此重新分离。
+如果连注册文本也没有，则必须先补回原始 DatasetA 元数据，不能猜测 CER 参考文本。
 
 设置 `DATA_DIR=/root/datasetA` 后，shell 会使用同次运行导出的 `best_sep_s1_to_s7_raw` 作为基线，
 继续生成 CMD 配对评价；也可用 `BASELINE_DIR` 覆盖该路径。不同 SE 模型必须使用不同 `WORK_DIR`，

@@ -18,7 +18,7 @@ import shlex
 import shutil
 import subprocess
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -35,14 +35,17 @@ from kws.qkw_nll import Qwen3ASRNLLScorer  # noqa: E402
 from kws.se_backend import spectral_subtract  # noqa: E402
 from kws.se_route import choose, paired, route_one, summarize  # noqa: E402
 from kws.stage_compare import StageArm, discover_stage_arms  # noqa: E402
+from kws.wav_paths import dataset_row_for, load_dataset_index  # noqa: E402
 
 SCHEMA = "kws_se_route/v1"
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Full raw/SE ASR recompute and s1->s7 evaluation")
     p.add_argument("--pos-neg", type=Path, required=True, help="extract-sep root containing pos/ and neg/")
     p.add_argument("--work-dir", type=Path, default=ROOT / "reports" / "se_route")
+    p.add_argument("--data-dir", type=Path, default=None, help="optional DatasetA root for legacy index metadata")
     p.add_argument("--model-dir", type=Path, default=None)
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--dtype", default="bfloat16")
@@ -95,6 +98,24 @@ def safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
 
 
+def wake_fields(row: dict[str, Any]) -> tuple[str, str, str]:
+    """Read both current and legacy extract-sep index field names."""
+    wake = str(
+        row.get("wake_text")
+        or row.get("唤醒文本")
+        or row.get("wake")
+        or row.get("text")
+        or ""
+    ).strip()
+    raw_lang = str(row.get("lang") or row.get("language") or "").strip().lower()
+    aliases = {"zh": "zh", "cn": "zh", "chinese": "zh", "中文": "zh", "en": "en", "english": "en", "英文": "en"}
+    if raw_lang in aliases:
+        return wake, aliases[raw_lang], "index_lang"
+    if wake:
+        return wake, ("zh" if _CJK_RE.search(wake) else "en"), "inferred_from_wake_text"
+    return wake, "", "missing_wake_text"
+
+
 def wav_path(arm: StageArm, uid: str, stream: str) -> Path:
     tag = "peak" if stream == "original" else stream
     return (arm.index_path.parent / "wav" / f"{uid}_{tag}.wav").resolve()
@@ -123,6 +144,7 @@ def inventory(args: argparse.Namespace, splits: list[str]) -> tuple[list[dict[st
     out: list[dict[str, Any]] = []
     selected: dict[str, Any] = {"splits": {}}
     arms_by_split = {split: discover_stage_arms(args.pos_neg, split) for split in splits}
+    dataset_index = load_dataset_index(args.data_dir) if args.data_dir and args.data_dir.is_dir() else {}
     resolved_s7 = args.s7_arm
     if resolved_s7 == "auto":
         common: set[str] | None = None
@@ -154,6 +176,17 @@ def inventory(args: argparse.Namespace, splits: list[str]) -> tuple[list[dict[st
         for role, arm in (("s1", s1), ("s7", s7)):
             for row in arm.rows:
                 uid = str(row["uid"])
+                wake, lang, metadata_source = wake_fields(row)
+                if (not wake or lang not in {"zh", "en"}) and dataset_index:
+                    dataset_row = dataset_row_for(row, dataset_index)
+                    if dataset_row:
+                        fallback_wake, fallback_lang, _ = wake_fields(dataset_row)
+                        if not wake and fallback_wake:
+                            wake = fallback_wake
+                        if lang not in {"zh", "en"} and fallback_lang in {"zh", "en"}:
+                            lang = fallback_lang
+                        if wake and lang in {"zh", "en"}:
+                            metadata_source = "dataset_jsonl_fallback"
                 for stream in sorted((row.get("streams") or {}).keys()):
                     path = wav_path(arm, uid, str(stream))
                     if not path.is_file():
@@ -161,8 +194,9 @@ def inventory(args: argparse.Namespace, splits: list[str]) -> tuple[list[dict[st
                     out.append({
                         "uid": uid,
                         "split": split,
-                        "wake_text": str(row.get("wake_text") or "").strip(),
-                        "lang": str(row.get("lang") or "").strip(),
+                        "wake_text": wake,
+                        "lang": lang,
+                        "metadata_source": metadata_source,
                         "role": role,
                         "arm": arm.label,
                         "stream": str(stream),
@@ -170,8 +204,13 @@ def inventory(args: argparse.Namespace, splits: list[str]) -> tuple[list[dict[st
                         "wav": str(path),
                         "audio_sha256": sha256_file(path),
                     })
-    if any(not row["wake_text"] or row["lang"] not in {"zh", "en"} for row in out):
-        raise SystemExit("[ERR] every candidate needs wake_text and lang=zh|en")
+    bad = [row for row in out if not row["wake_text"] or row["lang"] not in {"zh", "en"}]
+    if bad:
+        sample = [(row["uid"], row["arm"], row["metadata_source"]) for row in bad[:5]]
+        raise SystemExit(
+            "[ERR] registration text missing in legacy/current index; "
+            f"cannot recompute CER safely, examples={sample}"
+        )
     return out, selected
 
 
@@ -512,6 +551,7 @@ def build_report(args: argparse.Namespace, rows: list[dict[str, Any]], selected_
             "expected_uid": expected,
             "n_candidate_refs": len(rows),
             "n_unique_audio": len({row["audio_sha256"] for row in rows}),
+            "metadata_sources": dict(sorted(Counter(row.get("metadata_source") for row in rows).items())),
         },
         "se": {
             "backend": args.se_backend,

@@ -66,6 +66,9 @@ fi
 if [[ "$WITH_NLL" == "1" ]]; then
   args+=(--with-nll)
 fi
+if [[ -n "$DATA_DIR" ]]; then
+  args+=(--data-dir "$DATA_DIR")
+fi
 if [[ "$RESUME" == "1" ]]; then
   args+=(--resume)
 else
