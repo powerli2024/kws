@@ -2,7 +2,9 @@
 
 Repo for proposal v2: CER is a **constraint**, not the enroll objective. E1 is
 CER oracle (original wins ties); E2 ranks same-CER candidates by calibrated
-`q_kw`. **No MMS-FA.**
+`q_kw`. MMS-FA remains excluded from the frozen T0--T4 production selector;
+an isolated, fail-closed research branch is documented in
+[`docs/FA_EXPERIMENT.md`](docs/FA_EXPERIMENT.md).
 
 ## Core metric
 
@@ -80,6 +82,15 @@ python scripts/score_qkw_nll.py \
   --model-dir d:\models\Qwen3-ASR-1.7B \
   --overwrite
 # Interrupted full run: repeat the same command with --resume instead.
+
+# Experimental registration-text crop boundaries (does not alter T0--T4):
+python scripts/score_qwen3_fa.py \
+  --model-dir /root/autodl-tmp/Qwen3-ForcedAligner-0.6B \
+  --pos-neg /root/autodl-tmp/pos_neg --overwrite
+# Experimental MMS phonetic route evidence, in a separate torch 2.7 env:
+python scripts/score_mms_fa.py \
+  --uroman-dir /root/autodl-tmp/uroman \
+  --pos-neg /root/autodl-tmp/pos_neg --overwrite
 
 # Plumbing only: FFT does not produce a frozen-threshold rank.
 python scripts/run_kws_eval.py --backend fft --limit 20

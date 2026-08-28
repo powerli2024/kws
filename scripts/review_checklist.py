@@ -115,12 +115,16 @@ def main() -> int:
         pass
     ok("partial_sidecar_is_error", partial_ok, partial_detail)
 
-    # Weak leftover: MMS names must still be absent from src.
-    src = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "src").rglob("*.py"))
+    # FA is allowed only in its isolated experiment module. Frozen selectors
+    # must not import or call it.
+    frozen = "\n".join(
+        (ROOT / rel).read_text(encoding="utf-8")
+        for rel in ("src/kws/t0_t4.py", "src/kws/select_l2.py", "scripts/run_t0_t4.py")
+    )
     ok(
-        "no_mms_fa_symbols",
-        "MmsFa" not in src and "mms_fa_scorer" not in src and "pick_mms" not in src,
-        "src has no MMS-FA symbols (weak complement, not a substitute for the T4 probe)",
+        "fa_isolated_from_t0_t4",
+        "fa_experiment" not in frozen and "MmsFa" not in frozen and "pick_mms" not in frozen,
+        "FA experiment is not imported by frozen T0/T2/T4 selectors",
     )
 
     pipeline = (ROOT / "docs" / "PIPELINE.md").read_text(encoding="utf-8")

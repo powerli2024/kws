@@ -43,6 +43,21 @@ arms:
     answers: "global SE should lose; if it wins, need_se is wrong"
     stop_loss: "do not ship T4 even if it ties T1"
 
+# Isolated research matrix. These names are intentionally outside T0--T4 and
+# are consumed only by scripts/run_fa_experiment.py.
+fa_experiment:
+  status: experimental_not_production
+  frozen_main_arms_unchanged: true
+  route_model: mms_fa
+  crop_model: qwen3_forced_aligner_or_mms_fa
+  arms: [F0_t0_full, F1_qkw_full, F2_fa_full, F3_agree_full, F4_agree_safe_crop]
+  min_coverage: 1.0
+  max_star_fraction: 0.25  # provisional; calibrate on listen100
+  crop_margin_sec: 0.24
+  crop_min_output_sec: 1.50
+  conflict_fallback: t0_full
+  note: "FA proves text alignment, not speaker identity; final veto remains frozen Presence/CMD."
+
 skip_sep:
   after_scores: orig_unique_zero_only
   before_bss: disabled_until_residual_calibrated
@@ -132,7 +147,7 @@ bakeoff:
 
 do_not:
   - train a new separator in this repo
-  - use MMS-FA to pick enroll
+  - use MMS-FA to pick production enroll outside the isolated fa_experiment
   - use cos(candidate, raw) as a purity / L2 rank score
   - put heuristic p_music into official L2
   - use cos(e, e_cmd_crop) at test time
