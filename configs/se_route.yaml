@@ -1,0 +1,39 @@
+schema: kws_se_route/v1
+status: experimental_not_production
+frozen_t0_t4_unchanged: true
+
+audio:
+  sample_rate: 16000
+  length_policy: full_waveform
+  truncate_max_sec: 0
+  overwrite_source: false
+
+route:
+  priority: s1
+  fallback: s7
+  s7_trigger_cer: 0.0
+  switch_rule: strict_cer_improvement_then_target_nll_on_exact_cer_tie
+  force_switch_forbidden: true
+
+se:
+  views: [raw, se]
+  production_backend: external_neural_command
+  plumbing_control_backend: spectral
+  speaker_cos_min: 0.92
+  cer_regression_slack: 0.05
+  selected_se_must_pass_both_gates: true
+
+score:
+  zh: toneless_pinyin_cer
+  en: normalized_character_cer
+  hash_cache_key: [audio_sha256, wake_text, lang]
+  l1: minimum_cer
+  l2: minimum_target_nll_on_exact_cer_tie
+  note: raw NLL is not calibrated q_kw and cannot activate absolute thresholds
+
+acceptance:
+  expected_uid: 1838
+  mean_cer_max: 0.03
+  cer0_drop_max: 0.02
+  paired_cer_worsened_max: 0
+  downstream_required: [cmd_frr_far, extract_presence, contest_score]

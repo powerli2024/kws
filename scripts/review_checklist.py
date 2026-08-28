@@ -150,6 +150,28 @@ def main() -> int:
         "export_best_sep_groups.py and eval_cmd_cosine.py exist",
     )
 
+    se_route = ROOT / "scripts" / "run_se_route_eval.py"
+    se_shell = ROOT / "scripts" / "run_se_recompute.sh"
+    se_text = se_route.read_text(encoding="utf-8") if se_route.is_file() else ""
+    ok(
+        "se_route_recomputes_and_hash_caches",
+        se_route.is_file()
+        and "audio_sha256" in se_text
+        and "wake_text" in se_text
+        and "cer_detail" in se_text
+        and "add_speaker_safety" in se_text,
+        "SE route keys ASR by audio/text and applies post-SE speaker/CER safety",
+    )
+    shell_text = se_shell.read_text(encoding="utf-8") if se_shell.is_file() else ""
+    ok(
+        "se_full_recompute_shell",
+        se_shell.is_file()
+        and "EXPECTED_UIDS" in shell_text
+        and "SE_BATCH_COMMAND" in shell_text
+        and "audit_sep_input.py" in shell_text,
+        "full SE shell audits coverage and supports one-load manifest inference",
+    )
+
     failed = 0
     for name, cond, detail in CHECKS:
         mark = "PASS" if cond else "FAIL"
