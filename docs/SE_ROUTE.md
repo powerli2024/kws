@@ -57,7 +57,7 @@ ASR_MODEL_DIR=/root/autodl-tmp/Qwen3-ASR-1.7B \
 WORK_DIR=/root/autodl-tmp/kws_se_route \
 S7_ARM=你的冻结s7标签 \
 SE_BACKEND=command \
-SE_BATCH_COMMAND='python /root/cmd_se/infer_manifest.py --manifest {manifest}' \
+SE_BATCH_COMMAND='python /root/kws/scripts/extract_main_se48k_manifest.py --manifest {manifest} --extract-main /root/extract-main --clearvoice-root /root/autodl-tmp/ClearerVoice-Studio' \
 WITH_NLL=1 RESUME=1 \
 bash scripts/run_se_recompute.sh
 ```
