@@ -15,10 +15,15 @@ and the real contest score are the final adoption veto. Exact formulas, tie
 rules, calibration and forbidden metrics are defined in
 [`docs/CORE_METRIC.md`](docs/CORE_METRIC.md).
 
-**This repo does not run MossFormer.** Redo all BSS first on
+完整的中文端到端方案，包括 s1–s8 同 UID 评价、全流 MossFormer2_SE_48K、CER/`q_kw`
+选路、s1 与 SE/其他阶段组合及 Go/No-Go，见
+[`docs/KWS完整工作流.md`](docs/KWS完整工作流.md)。
+
+**This repo does not run or train a second separator.** Redo all BSS first on
 [powerli2024/extract](https://github.com/powerli2024/extract) branch **`sep`**
 (`./run_sep.sh` → `$VM_OUT/kws_handoff.json`). Then point `--pos-neg` here at that tree.
-Details: `docs/PIPELINE.md`.
+KWS may call extract-main's frozen MossFormer2_SE_48K as a post-separation SE
+view; it never overwrites raw candidates. Details: `docs/PIPELINE.md`.
 
 Evidence on the current `best_sep` (n=1838):
 
