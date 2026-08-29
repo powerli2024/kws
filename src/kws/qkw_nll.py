@@ -124,7 +124,18 @@ class Qwen3ASRNLLScorer:
         max_batch_size: int = 4,
     ) -> None:
         import torch
-        from qwen_asr import Qwen3ASRModel
+        try:
+            from qwen_asr import Qwen3ASRModel
+        except Exception as exc:
+            detail = str(exc)
+            if "numpy.dtype size changed" in detail or "sklearn" in detail.lower():
+                raise RuntimeError(
+                    "Qwen3-ASR dependency ABI mismatch: scikit-learn/NumPy cannot "
+                    "be imported. Rebuild the ve environment with compatible "
+                    "wheels, e.g. numpy==1.26.4 and scikit-learn==1.4.2, then "
+                    "rerun the same route command."
+                ) from exc
+            raise
 
         dtype_obj = {
             "bfloat16": torch.bfloat16,

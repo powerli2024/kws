@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -54,11 +54,22 @@ class Qwen3ASRTranscriber:
         *,
         device: str = "cuda:0",
         dtype: str = "bfloat16",
-        max_batch_size: int = 8,
+        max_batch_size: int = 1,
         max_new_tokens: int = 64,
     ) -> None:
         import torch
-        from qwen_asr import Qwen3ASRModel
+        try:
+            from qwen_asr import Qwen3ASRModel
+        except Exception as exc:
+            detail = str(exc)
+            if "numpy.dtype size changed" in detail or "sklearn" in detail.lower():
+                raise RuntimeError(
+                    "Qwen3-ASR dependency ABI mismatch: scikit-learn/NumPy cannot "
+                    "be imported. Rebuild the ve environment with compatible "
+                    "wheels, e.g. numpy==1.26.4 and scikit-learn==1.4.2, then "
+                    "rerun the same route command."
+                ) from exc
+            raise
 
         dtype_obj = {
             "bfloat16": torch.bfloat16,
@@ -80,6 +91,28 @@ class Qwen3ASRTranscriber:
         )
         _configure_generation_logging(self.model)
         self.max_batch_size = max(1, int(max_batch_size))
+        self.model_dir = str(model_dir)
+        self.device = str(device)
+        self.dtype_name = str(dtype)
+
+    @property
+    def runtime_info(self) -> dict[str, Any]:
+        """Small provenance record written into ASR sidecars and caches."""
+        info: dict[str, Any] = {
+            "adapter": "kws.Qwen3ASRTranscriber",
+            "model_dir": self.model_dir,
+            "device": self.device,
+            "dtype": self.dtype_name,
+            "max_batch_size": self.max_batch_size,
+            "sample_rate": 16000,
+        }
+        for package in ("qwen_asr", "transformers"):
+            try:
+                module = __import__(package)
+                info[f"{package}_version"] = str(getattr(module, "__version__", "unknown"))
+            except Exception:
+                info[f"{package}_version"] = "unavailable"
+        return info
 
     def transcribe_many(
         self,
@@ -87,28 +120,58 @@ class Qwen3ASRTranscriber:
         *,
         language: str,
         wake_text: str,
-        context_mode: str = "wake",
+        context_mode: str = "none",
     ) -> list[str]:
         if not wavs:
             return []
         audio = [(np.asarray(w, dtype=np.float32).reshape(-1), 16000) for w in wavs]
-        kwargs = {"audio": audio, "language": qwen_language(language)}
-        if context_mode == "wake":
-            kwargs["context"] = str(wake_text)
-        elif context_mode != "none":
-            raise ValueError(f"unknown context_mode={context_mode!r}")
+        mode = str(context_mode).strip().lower()
+        if mode not in {"wake", "none"}:
+            raise ValueError(f"unknown context_mode={context_mode!r}; expected wake or none")
+        # Q0 must be genuinely free transcription.  Passing an explicit empty
+        # context keeps the request unambiguous across Qwen3-ASR releases.
+        kwargs = {"audio": audio, "language": qwen_language(language), "context": ""}
+        if mode == "wake":
+            text = str(wake_text or "").strip()
+            if not text:
+                raise ValueError("context_mode='wake' requires non-empty wake_text")
+            kwargs["context"] = text
         try:
             results = self.model.transcribe(**kwargs)
-        except TypeError:
-            # Older qwen-asr packages call the same field ``prompt``.
-            if "context" not in kwargs:
-                raise
-            kwargs["prompt"] = kwargs.pop("context")
-            try:
-                results = self.model.transcribe(**kwargs)
-            except TypeError:
-                kwargs.pop("prompt", None)
-                results = self.model.transcribe(**kwargs)
+        except TypeError as exc:
+            # Do not silently fall back to prompt/no-context: that changes Q0
+            # into a different experiment and makes CER comparisons invalid.
+            raise RuntimeError(
+                "installed qwen_asr does not accept the explicit context field; "
+                "upgrade/pin a compatible Qwen3-ASR package instead of falling back"
+            ) from exc
         if len(results) != len(audio):
             raise RuntimeError(f"ASR returned {len(results)} rows for {len(audio)} inputs")
         return [str(getattr(item, "text", "") or "") for item in results]
+
+    def transcribe_many_detailed(
+        self,
+        wavs: Sequence[np.ndarray],
+        *,
+        language: str,
+        wake_text: str,
+        context_mode: str = "none",
+    ) -> list[dict[str, Any]]:
+        """Return text plus deterministic preprocessing/runtime provenance."""
+        texts = self.transcribe_many(
+            wavs,
+            language=language,
+            wake_text=wake_text,
+            context_mode=context_mode,
+        )
+        return [
+            {
+                "hyp": text,
+                "language": qwen_language(language),
+                "context_mode": str(context_mode),
+                "sample_rate": 16000,
+                "num_samples": int(np.asarray(wav).size),
+                "duration_sec": float(np.asarray(wav).size / 16000.0),
+            }
+            for wav, text in zip(wavs, texts)
+        ]

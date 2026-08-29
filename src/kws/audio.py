@@ -21,9 +21,10 @@ def load_wav_mono(path: Path, *, sr: int = 16000) -> tuple[np.ndarray, int]:
     wav, file_sr = _read(path)
     wav = np.asarray(wav, dtype=np.float32).reshape(-1)
     if int(file_sr) != int(sr):
-        wav = resample_linear(wav, int(file_sr), int(sr))
+        wav = resample_high_quality(wav, int(file_sr), int(sr))
         file_sr = sr
-    return wav.astype(np.float32), int(file_sr)
+    wav = np.nan_to_num(wav, nan=0.0, posinf=0.0, neginf=0.0)
+    return np.clip(wav, -1.0, 1.0).astype(np.float32), int(file_sr)
 
 
 def _read(path: Path) -> tuple[np.ndarray, int]:
@@ -61,6 +62,62 @@ def resample_linear(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray
     t = np.linspace(0.0, 1.0, n_out, endpoint=False)
     src = np.linspace(0.0, 1.0, x.size, endpoint=False)
     return np.interp(t, src, x).astype(np.float32)
+
+
+def resampler_name() -> str:
+    """Return the best available deterministic resampler backend name."""
+    try:
+        import soxr  # noqa: F401
+
+        return "soxr_hq"
+    except Exception:
+        pass
+    try:
+        import scipy.signal  # noqa: F401
+
+        return "scipy_resample_poly"
+    except Exception:
+        pass
+    return "linear_fallback"
+
+
+def resample_high_quality(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    """Resample speech with an anti-aliasing backend.
+
+    soxr is preferred, scipy's polyphase implementation is the portable
+    fallback, and linear interpolation is retained only for minimal images.
+    The fallback is exposed by :func:`resampler_name` so ASR sidecars can bind
+    their cache and report to the actual preprocessing implementation.
+    """
+    x = np.asarray(wav, dtype=np.float32).reshape(-1)
+    orig_sr, target_sr = int(orig_sr), int(target_sr)
+    if orig_sr <= 0 or target_sr <= 0:
+        raise ValueError(f"sample rates must be positive: {orig_sr}, {target_sr}")
+    if orig_sr == target_sr or x.size == 0:
+        return x
+    try:
+        import soxr
+
+        y = soxr.resample(x, orig_sr, target_sr, quality="HQ")
+        return np.asarray(y, dtype=np.float32).reshape(-1)
+    except Exception:
+        pass
+    try:
+        from math import gcd
+        from scipy.signal import resample_poly
+
+        g = gcd(orig_sr, target_sr)
+        y = resample_poly(x, target_sr // g, orig_sr // g)
+        expected = max(1, int(round(x.size * target_sr / orig_sr)))
+        if y.size != expected:
+            y = np.asarray(y, dtype=np.float32).reshape(-1)
+            if y.size > expected:
+                y = y[:expected]
+            else:
+                y = np.pad(y, (0, expected - y.size))
+        return np.asarray(y, dtype=np.float32).reshape(-1)
+    except Exception:
+        return resample_linear(x, orig_sr, target_sr)
 
 
 def save_wav_mono(path: Path, wav: np.ndarray, sr: int = 16000) -> None:
